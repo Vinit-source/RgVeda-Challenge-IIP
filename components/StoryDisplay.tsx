@@ -1,9 +1,11 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Topic, Language } from '../types';
+import type { Topic, Language, ChatMessage as ChatMessageType } from '../types';
 import { VedicAnimation } from './VedicAnimation';
+import { ChatMessage } from './ChatMessage';
+import { Suggestions } from './Suggestions';
+import { ChatInput } from './ChatInput';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
-import { synthesizeSpeech } from '../services/geminiService';
+import { synthesizeSpeech, continueConversation } from '../services/geminiService';
 import { audioService } from '../services/audioService';
 
 interface StoryDisplayProps {
@@ -15,6 +17,7 @@ interface StoryDisplayProps {
   loadingMessage: string;
   onBack: () => void;
   selectedLanguage: Language;
+  initialSuggestions: string[];
 }
 
 const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
@@ -26,24 +29,40 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
-export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack, selectedLanguage }) => {
+export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack, selectedLanguage, initialSuggestions }) => {
     const { addToQueue, isPlaying, error: audioError, clearError: clearAudioError } = useAudioPlayer();
-    const [displayedStory, setDisplayedStory] = useState('');
     const [isAnimationReady, setIsAnimationReady] = useState(false);
-    const hasStartedPlayback = useRef<boolean>(false);
     
+    const [messages, setMessages] = useState<ChatMessageType[]>([]);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [isReplying, setIsReplying] = useState(false);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         audioService.play();
+        return () => audioService.stop();
+    }, []);
 
-        // Cleanup function to stop music when component unmounts
-        return () => {
-            audioService.stop();
-        };
-    }, []); // Empty dependency array means this runs once on mount and cleanup runs on unmount
+    useEffect(() => {
+        if (story) {
+            const firstMessage = { sender: 'sage' as const, text: story };
+            setMessages([firstMessage]);
+            setSuggestions(initialSuggestions);
+            processSageMessageAudio(story);
+        } else {
+            setMessages([]);
+            setSuggestions([]);
+        }
+    }, [story, initialSuggestions]);
 
-    const processTts = useCallback(async (fullStory: string) => {
-        const sentences = fullStory.split(/(?<=[.?!])\s+/);
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
 
+    const processSageMessageAudio = useCallback(async (text: string) => {
+        const sentences = text.split(/(?<=[.?!])\s+/);
         for (const sentence of sentences) {
           if (sentence.trim().length > 0) {
             try {
@@ -56,38 +75,28 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         }
     }, [addToQueue, selectedLanguage.name]);
 
-    const startTypewriter = useCallback((fullStory: string) => {
-        let i = 0;
-        const typingSpeed = 30; // ms per character
-        const intervalId = setInterval(() => {
-            i++;
-            setDisplayedStory(fullStory.substring(0, i));
-            if (i >= fullStory.length) {
-                clearInterval(intervalId);
-            }
-        }, typingSpeed);
-        return () => clearInterval(intervalId);
-    }, []);
+    const handleSendMessage = useCallback(async (userInput: string) => {
+        setIsReplying(true);
+        setSuggestions([]);
 
-    useEffect(() => {
-        // When the full story is available, the p5 code is ready, the animation is rendered, and we haven't started playback yet...
-        if (story && p5jsCode && isAnimationReady && !hasStartedPlayback.current) {
-            hasStartedPlayback.current = true;
-            processTts(story);
-            const clearTypewriter = startTypewriter(story);
-            return clearTypewriter; // Cleanup interval on unmount
-        }
-    }, [story, p5jsCode, isAnimationReady, processTts, startTypewriter]);
+        const newMessages: ChatMessageType[] = [...messages, { sender: 'user', text: userInput }];
+        setMessages(newMessages);
 
-    // Reset component state when topic changes (when story becomes null)
-    useEffect(() => {
-        if (!story) {
-            setDisplayedStory('');
-            setIsAnimationReady(false);
-            hasStartedPlayback.current = false;
-            clearAudioError();
+        const history = newMessages.map(m => `${m.sender === 'sage' ? 'Sage' : 'User'}: ${m.text}`).join('\n\n');
+        
+        try {
+            const response = await continueConversation(history, selectedLanguage.name);
+            setMessages(prev => [...prev, { sender: 'sage', text: response.reply }]);
+            setSuggestions(response.suggestions);
+            processSageMessageAudio(response.reply);
+        } catch (e) {
+            console.error(e);
+            const errorMessage = "The Sage seems to be in deep meditation and cannot reply right now. Please try again later.";
+            setMessages(prev => [...prev, { sender: 'sage', text: errorMessage }]);
+        } finally {
+            setIsReplying(false);
         }
-    }, [story, clearAudioError]);
+    }, [messages, selectedLanguage.name, processSageMessageAudio]);
 
     return (
     <div className="bg-white/50 rounded-lg shadow-lg p-4 sm:p-8 w-full border border-amber-200/80">
@@ -106,7 +115,6 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/2 relative aspect-video rounded-lg overflow-hidden shadow-inner bg-stone-900">
-            {/* Loading overlay for the animation */}
             {isLoading && !p5jsCode && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/80 z-10 text-amber-100">
                     <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -127,35 +135,35 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             </div>
         </div>
 
-        <div className="lg:w-1/2 flex flex-col">
-            <div className="h-96 overflow-y-auto p-4 bg-orange-50/70 rounded-md border border-amber-200 prose prose-stone max-w-none">
-                { (displayedStory || isLoading) ? (
-                    <p className="whitespace-pre-wrap">{displayedStory}{story && displayedStory.length < story.length && <span className="inline-block w-2 h-4 bg-amber-800 animate-pulse ml-1"></span>}</p>
-                 ) : <p className="text-stone-500">The sage prepares to speak...</p>
-                }
+        <div id="conversations" className="lg:w-1/2 flex flex-col">
+            <div ref={chatContainerRef} className="flex-grow h-96 overflow-y-auto p-4 bg-orange-50/70 rounded-md border border-amber-200">
+                {messages.map((msg, index) => (
+                    <ChatMessage key={index} message={msg} />
+                ))}
+                {isReplying && <div className="flex justify-center p-4"><LoadingSpinner message="The Sage is contemplating..."/></div>}
+                {isLoading && messages.length === 0 && <div className="flex justify-center p-4"><LoadingSpinner message={loadingMessage}/></div>}
+                {!isLoading && messages.length === 0 && <p className="text-stone-500 p-4">The sage prepares to speak...</p>}
             </div>
             
-            {/* Status Area */}
-            <div className="mt-4 flex-grow flex items-center">
-                 {isLoading && <LoadingSpinner message={loadingMessage}/>}
-                 
+            <div className="mt-4">
                  {audioError && !isLoading && (
-                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-r-lg flex justify-between items-center w-full" role="alert">
+                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-r-lg flex justify-between items-center w-full mb-4" role="alert">
                       <div>
                         <p className="font-bold">Audio Playback Error</p>
                         <p className="text-sm">{audioError}</p>
                       </div>
+                      {/* FIX: `clearError` was renamed to `clearAudioError` during destructuring. */}
                       <button onClick={clearAudioError} className="ml-4 p-1 rounded-full hover:bg-red-200" aria-label="Dismiss">
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                  )}
+                 <Suggestions suggestions={suggestions} onSuggestionClick={handleSendMessage} disabled={isReplying || isLoading} />
+                 <ChatInput onSendMessage={handleSendMessage} disabled={isReplying || isLoading} />
             </div>
 
              {citations.length > 0 && !isLoading && (
-                <div className="mt-auto pt-4">
+                <div className="mt-4 pt-4 border-t border-amber-200">
                     <h4 className="font-bold text-stone-700">Sources from the Rigveda:</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {citations.map(c => <span key={c} className="bg-amber-200 text-amber-800 text-xs font-mono px-2 py-1 rounded-full">{c}</span>)}

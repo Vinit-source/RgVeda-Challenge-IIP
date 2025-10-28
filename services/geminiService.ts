@@ -1,6 +1,6 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
-import type { HymnChunk } from '../types';
+import { GoogleGenAI, Modality, Type } from "@google/genai";
+import type { HymnChunk, SageResponse } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -38,6 +38,25 @@ const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in
 ---
 `;
 
+const SAGE_RESPONSE_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        reply: {
+            type: Type.STRING,
+            description: "The Vedic Sage's response to the user's question, written in a poetic, wise, and story-like manner, grounded in Rigvedic context. It should be concise."
+        },
+        suggestions: {
+            type: Type.ARRAY,
+            description: "Three or four short, insightful follow-up questions the user could ask based on the Sage's reply.",
+            items: {
+                type: Type.STRING
+            }
+        }
+    },
+    required: ['reply', 'suggestions']
+};
+
+
 export async function* generateStoryStream(query: string, context: HymnChunk[]): AsyncGenerator<{ text: string; }, void, unknown> {
     const model = 'gemini-2.5-pro';
     
@@ -70,8 +89,6 @@ export async function generateP5jsAnimation(story: string): Promise<string> {
 
     let code = response.text;
 
-    // More robustly find and extract the code from a markdown block.
-    // The model might add explanations around the code.
     const javascriptBlockRegex = /```javascript\s*([\s\S]*?)\s*```/;
     const plainBlockRegex = /```\s*([\s\S]*?)\s*```/;
 
@@ -99,7 +116,7 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
             responseModalities: [Modality.AUDIO],
             speechConfig: {
                 voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: 'Kore' }, // A deep, storytelling voice
+                    prebuiltVoiceConfig: { voiceName: 'Kore' },
                 },
             },
         },
@@ -110,4 +127,79 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
         throw new Error("No audio data returned from API");
     }
     return audioData;
+}
+
+export async function continueConversation(history: string, language: string): Promise<SageResponse> {
+    const model = 'gemini-2.5-pro';
+    
+    const query = `You are the Vedic Sage. A user is asking you a follow-up question. Your conversation history is provided below.
+    Answer their last question and provide 3-4 new follow-up questions.
+    Your answer must be in ${language}.
+    Your answer must be concise (less than 400 tokens).
+    Ground your answer in the hymns of the Rigveda.
+    
+    CONVERSATION HISTORY:
+    ---
+    ${history}
+    ---
+    `;
+
+    const response = await ai.models.generateContent({
+        model,
+        contents: query,
+        config: {
+            systemInstruction: VEDIC_SAGE_PROMPT,
+            responseMimeType: "application/json",
+            responseSchema: SAGE_RESPONSE_SCHEMA,
+        },
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        const data = JSON.parse(jsonText);
+        if (data.reply && Array.isArray(data.suggestions)) {
+            return data as SageResponse;
+        }
+        throw new Error("Invalid response schema from Gemini");
+    } catch (e) {
+        console.error("Failed to parse Gemini JSON response:", e, response.text);
+        throw new Error("The Sage's thoughts are unclear. Could not parse the response.");
+    }
+}
+
+export async function generateInitialSuggestions(story: string, language: string): Promise<string[]> {
+    const model = 'gemini-2.5-pro';
+    const query = `Based on the following story from the Rigveda, generate 3-4 short, insightful follow-up questions a curious user might ask. Output only a JSON array of strings.
+    
+    STORY:
+    ---
+    ${story}
+    ---
+
+    Language for questions: ${language}
+    `;
+
+    const response = await ai.models.generateContent({
+        model,
+        contents: query,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+            }
+        }
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+    } catch (e) {
+        console.error("Failed to parse initial suggestions:", e, response.text);
+        return [
+            "Tell me more about this.",
+            "What happens next?",
+            "What does this symbolize?"
+        ]; // Fallback suggestions
+    }
 }

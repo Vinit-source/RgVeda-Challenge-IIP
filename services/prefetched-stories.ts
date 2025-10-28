@@ -1,12 +1,16 @@
 
-export const prefetchedStories = {
+import type { CachedStory } from '../types';
+
+// The structure is now { [topicTitle: string]: { [languageCode: string]: Omit<CachedStory, 'language'> } }
+export const prefetchedStories: { [key: string]: { [key: string]: Omit<CachedStory, 'language'> } } = {
   "Surya, The Sun God": {
-    story: `Behold the glorious face of the immortals, which arises in splendor (RV 1.115.1). This is Surya, the great eye of Mitra, of Varuna, and of Agni, who has filled the heavens, the earth, and the vast space between. He is the very soul, the Atma, of all that moves and all that stands still upon the earth (RV 1.115.1).
+    "en-US": { // English version
+      story: `Behold the glorious face of the immortals, which arises in splendor (RV 1.115.1). This is Surya, the great eye of Mitra, of Varuna, and of Agni, who has filled the heavens, the earth, and the vast space between. He is the very soul, the Atma, of all that moves and all that stands still upon the earth (RV 1.115.1).
 
 He ascends, the radiant ornament of the skies (RV 7.63.1), the all-beholding Sun. As he journeys, he measures our days, looking down upon all creatures that have been born (RV 1.50.4). Before his advance, the very stars, like thieves, retreat with their constellations into the night (RV 1.50.2).
 
 He mounts his splendid chariot, drawn by his seven swift, gleaming mares (RV 7.63.4). This divine son of Aditi, Surya, advances upon his path, carried by his radiant horses, to behold all the worlds (RV 1.50.1). He is the all-seeing eye of the cosmos, the guardian who knows all beings, riding forth in his glory (RV 7.63.1).`,
-    p5jsCode: `p.setup = () => {
+      p5jsCode: `p.setup = () => {
   p.particles = [];
   // The 'chariot' is an emitter that moves across the sky
   p.chariotPos = p.createVector(0, p.height / 3);
@@ -92,13 +96,20 @@ p.windowResized = () => {
   // The canvas is managed by the host, but we can reset the chariot
   p.chariotPos = p.createVector(0, p.height / 3);
 };`,
-    citations: [
-      "RV 1.115.1",
-      "RV 7.63.1",
-      "RV 1.50.4",
-      "RV 1.50.2",
-      "RV 7.63.4",
-      "RV 1.50.1"
-    ]
+      citations: [
+        "RV 1.115.1",
+        "RV 7.63.1",
+        "RV 1.50.4",
+        "RV 1.50.2",
+        "RV 7.63.4",
+        "RV 1.50.1"
+      ],
+      suggestions: [
+        "Tell me more about the seven mares.",
+        "What is the significance of Surya being the 'Atma'?",
+        "Who is Aditi?",
+        "Explain the relationship between Surya, Mitra, and Varuna."
+      ]
+    }
   }
-}
+};

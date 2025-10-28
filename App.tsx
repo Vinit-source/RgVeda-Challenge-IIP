@@ -1,13 +1,14 @@
-
 import React, { useState, useCallback } from 'react';
 import { Playbook } from './components/Playbook';
 import { StoryDisplay } from './components/StoryDisplay';
 import { LanguageSelector } from './components/LanguageSelector';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { retrieveHymns, TOPICS_CATEGORIZED, getTopicByTitle } from './services/rigvedaService';
-import { generateStoryStream, generateP5jsAnimation } from './services/geminiService';
+import { generateStoryStream, generateP5jsAnimation, generateInitialSuggestions } from './services/geminiService';
 import { cacheService } from './services/cacheService';
+import { translateCachedStory } from './services/translationService';
 import { LANGUAGES } from './services/languageService';
+import { prefetchedStories } from './services/prefetched-stories';
 import type { Topic, HymnChunk, Language } from './types';
 
 const App: React.FC = () => {
@@ -16,6 +17,7 @@ const App: React.FC = () => {
   const [story, setStory] = useState<string | null>(null);
   const [p5jsCode, setP5jsCode] = useState<string | null>(null);
   const [citations, setCitations] = useState<string[]>([]);
+  const [initialSuggestions, setInitialSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,7 @@ const App: React.FC = () => {
     setStory(null);
     setP5jsCode(null);
     setCitations([]);
+    setInitialSuggestions([]);
     
     const topic = getTopicByTitle(topicTitle);
     setSelectedTopic(topic);
@@ -38,18 +41,54 @@ const App: React.FC = () => {
         return;
     }
 
-    // Check localStorage cache (now language-aware)
-    const cachedData = cacheService.get(topic.title, selectedLanguage.code);
-    if (cachedData) {
-        setStory(cachedData.story);
-        setP5jsCode(cachedData.p5jsCode);
-        setCitations(cachedData.citations);
+    try {
+      // 1. Check prefetched stories for a direct language match
+      const prefetchedData = prefetchedStories[topic.title]?.[selectedLanguage.code];
+      if (prefetchedData) {
+          setStory(prefetchedData.story);
+          setP5jsCode(prefetchedData.p5jsCode);
+          setCitations(prefetchedData.citations);
+          setInitialSuggestions(prefetchedData.suggestions || []);
+          setIsLoading(false);
+          return;
+      }
+
+      // 2. Check localStorage cache
+      const cachedData = cacheService.get(topic.title, selectedLanguage.code);
+      if (cachedData) {
+          setStory(cachedData.story);
+          setP5jsCode(cachedData.p5jsCode);
+          setCitations(cachedData.citations);
+          setInitialSuggestions(cachedData.suggestions || []);
+          setIsLoading(false);
+          return;
+      }
+
+      // 3. Check for English prefetched story to translate
+      const englishPrefetchedData = prefetchedStories[topic.title]?.['en-US'];
+      if (englishPrefetchedData && selectedLanguage.code !== 'en-US') {
+        setLoadingMessage("The Sage is translating ancient texts...");
+        const translatedData = await translateCachedStory(englishPrefetchedData, selectedLanguage.name);
+        
+        setStory(translatedData.story);
+        setP5jsCode(englishPrefetchedData.p5jsCode); // p5js code doesn't need translation
+        setCitations(englishPrefetchedData.citations); // citations don't need translation
+        setInitialSuggestions(translatedData.suggestions);
+
+        // Cache the newly translated story
+        cacheService.set(topic.title, {
+            story: translatedData.story,
+            p5jsCode: englishPrefetchedData.p5jsCode,
+            citations: englishPrefetchedData.citations,
+            language: selectedLanguage.code,
+            suggestions: translatedData.suggestions,
+        }, selectedLanguage.code);
+
         setIsLoading(false);
         return;
-    }
+      }
 
-    try {
-      // Generate story if not found in cache
+      // 4. Generate story if not found in any cache
       setLoadingMessage("The Sage is contemplating the hymns...");
       const context: HymnChunk[] = retrieveHymns(topic.keywords);
       const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
@@ -69,22 +108,26 @@ const App: React.FC = () => {
       const storyCitations = Array.from(uniqueCitations);
       setStory(fullStory);
       setCitations(storyCitations);
+      
+      setLoadingMessage("The Sage is pondering further questions...");
+      const suggestions = await generateInitialSuggestions(fullStory, selectedLanguage.name);
+      setInitialSuggestions(suggestions);
 
-      // Generate Animation
       setLoadingMessage("The Sage is visualizing the narrative...");
       const animationCode = await generateP5jsAnimation(fullStory);
       setP5jsCode(animationCode);
       
-      // Save to localStorage cache
       cacheService.set(topic.title, {
           story: fullStory,
           p5jsCode: animationCode,
-          citations: storyCitations
+          citations: storyCitations,
+          language: selectedLanguage.code,
+          suggestions: suggestions,
       }, selectedLanguage.code);
       
     } catch (e) {
       console.error(e);
-      setError("The sage is currently in deep meditation. Please try again later.");
+      setError(e instanceof Error ? e.message : "The sage is currently in deep meditation. Please try again later.");
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -96,6 +139,7 @@ const App: React.FC = () => {
     setStory(null);
     setP5jsCode(null);
     setCitations([]);
+    setInitialSuggestions([]);
   };
 
   return (
@@ -116,6 +160,7 @@ const App: React.FC = () => {
             loadingMessage={loadingMessage}
             onBack={handleBack}
             selectedLanguage={selectedLanguage}
+            initialSuggestions={initialSuggestions}
           />
         ) : (
           <div>
