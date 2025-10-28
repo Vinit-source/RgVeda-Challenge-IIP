@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { Playbook } from './components/Playbook';
 import { StoryDisplay } from './components/StoryDisplay';
 import { SparklesIcon } from './components/icons/SparklesIcon';
-import { retrieveHymns, TOPICS, getTopicByTitle } from './services/rigvedaService';
+import { retrieveHymns, TOPICS_CATEGORIZED, getTopicByTitle } from './services/rigvedaService';
 import { generateStoryStream, generateP5jsAnimation } from './services/geminiService';
 import type { Topic, HymnChunk } from './types';
 
@@ -100,7 +100,7 @@ const App: React.FC = () => {
                 <h2 className="text-2xl font-display text-amber-900">Choose a Path of Wisdom</h2>
                 <p className="mt-2 text-stone-700 max-w-3xl mx-auto">Select a deity, concept, or hymn from the sacred playbook below. The Sage will weave a tale from the ancient verses of the Rigveda, illuminating its timeless knowledge.</p>
             </div>
-            <Playbook topics={TOPICS} onSelect={handleTopicSelect} />
+            <Playbook topics={TOPICS_CATEGORIZED} onSelect={handleTopicSelect} />
           </div>
         )}
       </main>
