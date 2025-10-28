@@ -25,11 +25,6 @@ export interface ChatMessage {
   text: string;
 }
 
-export interface SageResponse {
-    reply: string;
-    suggestions: string[];
-}
-
 export interface CachedStory {
     story: string;
     p5jsCode: string;

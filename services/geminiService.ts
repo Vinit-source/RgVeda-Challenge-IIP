@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
-import type { HymnChunk, SageResponse } from '../types';
+import type { HymnChunk } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -34,25 +34,6 @@ const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in
 **TOPIC:** {TOPIC_TITLE}
 **DESCRIPTION:** {TOPIC_DESCRIPTION}
 `;
-
-const SAGE_RESPONSE_SCHEMA = {
-    type: Type.OBJECT,
-    properties: {
-        reply: {
-            type: Type.STRING,
-            description: "The Vedic Sage's response to the user's question, written in a poetic, wise, and story-like manner, grounded in Rigvedic context. It should be concise."
-        },
-        suggestions: {
-            type: Type.ARRAY,
-            description: "Three or four short, insightful follow-up questions the user could ask based on the Sage's reply.",
-            items: {
-                type: Type.STRING
-            }
-        }
-    },
-    required: ['reply', 'suggestions']
-};
-
 
 export async function* generateStoryStream(query: string, context: HymnChunk[]): AsyncGenerator<{ text: string; }, void, unknown> {
     const model = 'gemini-2.5-pro';
@@ -130,12 +111,20 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
     return audioData;
 }
 
-export async function continueConversation(history: string, language: string): Promise<SageResponse> {
+export async function* continueConversationStream(history: string, language: string): AsyncGenerator<string, void, unknown> {
     const model = 'gemini-2.5-pro';
     
     const query = `You are the Vedic Sage. A user is asking you a follow-up question. Your conversation history is provided below.
-    Answer their last question and provide 3-4 new follow-up questions.
-    Your answer must be in ${language}.
+    First, provide a direct and concise answer to their last question.
+    After your answer is complete, on a new line, write the special delimiter "[SUGGESTIONS]".
+    After the delimiter, provide a JSON array of 3-4 short, insightful follow-up questions the user could ask.
+    
+    Example output format:
+    This is the sage's wise reply, flowing like a river of knowledge.
+    [SUGGESTIONS]
+    ["What does this mean?", "Tell me more about that.", "How is this related to the hymns?"]
+
+    Your entire response, including the reply and suggestions, must be in ${language}.
     Your answer must be concise (less than 400 tokens).
     Ground your answer in the hymns of the Rigveda.
     
@@ -145,26 +134,16 @@ export async function continueConversation(history: string, language: string): P
     ---
     `;
 
-    const response = await ai.models.generateContent({
+    const stream = await ai.models.generateContentStream({
         model,
         contents: query,
         config: {
             systemInstruction: VEDIC_SAGE_PROMPT,
-            responseMimeType: "application/json",
-            responseSchema: SAGE_RESPONSE_SCHEMA,
         },
     });
 
-    try {
-        const jsonText = response.text.trim();
-        const data = JSON.parse(jsonText);
-        if (data.reply && Array.isArray(data.suggestions)) {
-            return data as SageResponse;
-        }
-        throw new Error("Invalid response schema from Gemini");
-    } catch (e) {
-        console.error("Failed to parse Gemini JSON response:", e, response.text);
-        throw new Error("The Sage's thoughts are unclear. Could not parse the response.");
+    for await (const chunk of stream) {
+        yield chunk.text;
     }
 }
 

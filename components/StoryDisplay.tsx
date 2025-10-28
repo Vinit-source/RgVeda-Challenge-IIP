@@ -4,7 +4,7 @@ import { VedicAnimation } from './VedicAnimation';
 import { ChatMessage } from './ChatMessage';
 import { Suggestions } from './Suggestions';
 import { ChatInput } from './ChatInput';
-import { synthesizeSpeech, continueConversation } from '../services/geminiService';
+import { synthesizeSpeech, continueConversationStream } from '../services/geminiService';
 import { audioService } from '../services/audioService';
 import { decode, decodeAudioData } from '../utils/audioUtils';
 
@@ -151,11 +151,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
     }, [messages]);
 
     const handleSendMessage = useCallback(async (userInput: string) => {
-        if (!userInput.trim()) return;
+        if (!userInput.trim() || isReplying) return;
         setIsReplying(true);
         setSuggestions([]);
-        
-        // Stop any currently playing audio.
+
         if (audioSourceRef.current) {
             audioSourceRef.current.onended = null;
             audioSourceRef.current.stop();
@@ -164,25 +163,79 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         setTtsState({ id: null, status: 'IDLE' });
 
         const userMessage: ChatMessageType = { id: `user-${Date.now()}`, sender: 'user', text: userInput };
-        const newMessages: ChatMessageType[] = [...messages, userMessage];
-        setMessages(newMessages);
+        const sagePlaceholderId = `sage-${Date.now()}`;
+        const sagePlaceholderMessage: ChatMessageType = { id: sagePlaceholderId, sender: 'sage', text: '' };
 
-        const history = newMessages.map(m => `${m.sender === 'sage' ? 'Sage' : 'User'}: ${m.text}`).join('\n\n');
+        const currentMessages = [...messages, userMessage];
+        setMessages([...currentMessages, sagePlaceholderMessage]);
+
+        const history = currentMessages.map(m => `${m.sender === 'sage' ? 'Sage' : 'User'}: ${m.text}`).join('\n\n');
         
+        let fullResponseText = '';
         try {
-            const response = await continueConversation(history, selectedLanguage.name);
-            const sageMessage: ChatMessageType = { id: `sage-${Date.now()}`, sender: 'sage', text: response.reply };
-            setMessages(prev => [...prev, sageMessage]);
-            setSuggestions(response.suggestions);
-            playAudioForMessage(sageMessage); // Autoplay the new reply
+            const stream = continueConversationStream(history, selectedLanguage.name);
+            for await (const chunk of stream) {
+                const suggestionDelimiter = '[SUGGESTIONS]';
+                let chunkToType = chunk;
+                
+                const combinedTextForCheck = fullResponseText + chunk;
+                const delimiterIndex = combinedTextForCheck.indexOf(suggestionDelimiter);
+
+                if (delimiterIndex !== -1) {
+                    const delimiterStartsAt = delimiterIndex - fullResponseText.length;
+                    if (delimiterStartsAt >= 0 && delimiterStartsAt < chunk.length) {
+                        chunkToType = chunk.substring(0, delimiterStartsAt);
+                    } else if (delimiterStartsAt < 0) {
+                        chunkToType = '';
+                    }
+                }
+                
+                if (chunkToType) {
+                    for (const char of chunkToType.split('')) {
+                        setMessages(prev => prev.map(m => {
+                            if (m.id === sagePlaceholderId) {
+                                const textWithoutCursor = m.text.endsWith('▍') ? m.text.slice(0, -1) : m.text;
+                                return { ...m, text: textWithoutCursor + char + '▍' };
+                            }
+                            return m;
+                        }));
+                        await new Promise(r => setTimeout(r, 25)); // Typing speed
+                    }
+                }
+                
+                fullResponseText += chunk;
+            }
+
+            const suggestionDelimiter = '[SUGGESTIONS]';
+            const delimiterIndex = fullResponseText.indexOf(suggestionDelimiter);
+            let finalReply = fullResponseText.trim();
+            let finalSuggestions: string[] = [];
+
+            if (delimiterIndex !== -1) {
+                finalReply = fullResponseText.substring(0, delimiterIndex).trim();
+                const suggestionsJson = fullResponseText.substring(delimiterIndex + suggestionDelimiter.length).trim();
+                try {
+                    finalSuggestions = JSON.parse(suggestionsJson);
+                } catch (e) {
+                    console.error("Failed to parse final suggestions JSON:", e);
+                    finalSuggestions = ["Tell me more about that.", "What does this symbolize?"];
+                }
+            }
+
+            const finalSageMessage = { id: sagePlaceholderId, sender: 'sage' as const, text: finalReply };
+            setMessages(prev => prev.map(m => m.id === sagePlaceholderId ? finalSageMessage : m));
+            setSuggestions(finalSuggestions);
+            playAudioForMessage(finalSageMessage);
+
         } catch (e) {
             console.error(e);
             const errorMessage = "The Sage seems to be in deep meditation and cannot reply right now. Please try again later.";
-            setMessages(prev => [...prev, { id: `sage-error-${Date.now()}`, sender: 'sage', text: errorMessage }]);
+            setMessages(prev => prev.map(m => m.id === sagePlaceholderId ? { ...m, text: errorMessage } : m));
         } finally {
             setIsReplying(false);
         }
-    }, [messages, selectedLanguage.name, playAudioForMessage]);
+    }, [messages, selectedLanguage.name, playAudioForMessage, isReplying]);
+
 
     return (
     <div className="bg-white/50 rounded-lg shadow-lg p-4 sm:p-8 w-full border border-amber-200/80">
@@ -203,7 +256,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         <div className="lg:w-1/2 relative aspect-video rounded-lg overflow-hidden shadow-inner bg-stone-900">
             {isLoading && !p5jsCode && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/80 z-10 text-amber-100">
-                    <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -230,7 +283,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                         ttsState={ttsState}
                     />
                 ))}
-                {isReplying && <div className="flex justify-center p-4"><LoadingSpinner message="The Sage is contemplating..."/></div>}
+                {isReplying && messages[messages.length-1]?.sender === 'sage' && messages[messages.length-1]?.text.endsWith('▍') ? null : (isReplying && <div className="flex justify-center p-4"><LoadingSpinner message="The Sage is contemplating..."/></div>) }
                 {isLoading && messages.length === 0 && <div className="flex justify-center p-4"><LoadingSpinner message={loadingMessage}/></div>}
                 {!isLoading && messages.length === 0 && <p className="text-stone-500 p-4">The sage prepares to speak...</p>}
             </div>
