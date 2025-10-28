@@ -41,63 +41,66 @@ const App: React.FC = () => {
         return;
     }
 
-    try {
-      // 1. Check prefetched stories for a direct language match
-      const prefetchedData = prefetchedStories[topic.title]?.[selectedLanguage.code];
-      if (prefetchedData) {
-          setStory(prefetchedData.story);
-          setP5jsCode(prefetchedData.p5jsCode);
-          setCitations(prefetchedData.citations);
-          setInitialSuggestions(prefetchedData.suggestions || []);
-          setIsLoading(false);
-          return;
-      }
+    const loadAnimation = async (): Promise<string> => {
+        const englishPrefetched = prefetchedStories[topic.title]?.['en-US'];
+        if (englishPrefetched?.p5jsCode) {
+            return englishPrefetched.p5jsCode;
+        }
 
-      // 2. Check localStorage cache
-      const cachedData = cacheService.get(topic.title, selectedLanguage.code);
-      if (cachedData) {
-          setStory(cachedData.story);
-          setP5jsCode(cachedData.p5jsCode);
-          setCitations(cachedData.citations);
-          setInitialSuggestions(cachedData.suggestions || []);
-          setIsLoading(false);
-          return;
-      }
+        const cachedEnglish = cacheService.get(topic.title, 'en-US');
+        if (cachedEnglish?.p5jsCode) {
+            return cachedEnglish.p5jsCode;
+        }
 
-      // 3. Check for English prefetched story to translate
-      const englishPrefetchedData = prefetchedStories[topic.title]?.['en-US'];
-      if (englishPrefetchedData && selectedLanguage.code !== 'en-US') {
-        setLoadingMessage("The Sage is translating ancient texts...");
-        const translatedData = await translateCachedStory(englishPrefetchedData, selectedLanguage.name);
+        const cachedSelectedLang = cacheService.get(topic.title, selectedLanguage.code);
+        if (cachedSelectedLang?.p5jsCode) {
+            return cachedSelectedLang.p5jsCode;
+        }
         
-        setStory(translatedData.story);
-        setP5jsCode(englishPrefetchedData.p5jsCode); // p5js code doesn't need translation
-        setCitations(englishPrefetchedData.citations); // citations don't need translation
-        setInitialSuggestions(translatedData.suggestions);
+        setLoadingMessage("The Sage is visualizing the narrative...");
+        return generateP5jsAnimation(topic.title, topic.description);
+    };
 
-        // Cache the newly translated story
-        cacheService.set(topic.title, {
-            story: translatedData.story,
-            p5jsCode: englishPrefetchedData.p5jsCode,
-            citations: englishPrefetchedData.citations,
-            language: selectedLanguage.code,
-            suggestions: translatedData.suggestions,
-        }, selectedLanguage.code);
+    const loadStory = async (): Promise<{ story: string; citations: string[]; suggestions: string[] }> => {
+        // 1. Direct language match in prefetched stories
+        const prefetchedData = prefetchedStories[topic.title]?.[selectedLanguage.code];
+        if (prefetchedData) {
+            return {
+                story: prefetchedData.story,
+                citations: prefetchedData.citations,
+                suggestions: prefetchedData.suggestions || [],
+            };
+        }
 
-        setIsLoading(false);
-        return;
-      }
+        // 2. Check localStorage cache
+        const cachedData = cacheService.get(topic.title, selectedLanguage.code);
+        if (cachedData) {
+            return {
+                story: cachedData.story,
+                citations: cachedData.citations,
+                suggestions: cachedData.suggestions || [],
+            };
+        }
 
-      // 4. Generate story and animation if not found in any cache
-      setLoadingMessage("The Sage is contemplating the hymns and visualizing the narrative...");
-      const context: HymnChunk[] = retrieveHymns(topic.keywords);
-      
-      // Start both tasks in parallel
-      const animationPromise = generateP5jsAnimation(topic.title, topic.description);
-      
-      const storyPromise = (async () => {
+        // 3. Check for English prefetched story to translate
+        const englishPrefetched = prefetchedStories[topic.title]?.['en-US'];
+        if (englishPrefetched && selectedLanguage.code !== 'en-US') {
+            setLoadingMessage("The Sage is translating ancient texts...");
+            const translatedData = await translateCachedStory(englishPrefetched, selectedLanguage.name);
+            return {
+                story: translatedData.story,
+                citations: englishPrefetched.citations,
+                suggestions: translatedData.suggestions,
+            };
+        }
+        
+        // 4. Generate story and suggestions if not found in any cache
+        setLoadingMessage("The Sage is weaving the tale...");
+        const context: HymnChunk[] = retrieveHymns(topic.keywords);
+        
         const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
         const storyStream = generateStoryStream(query, context);
+        
         let fullStory = '';
         const uniqueCitations = new Set<string>();
         for await (const chunk of storyStream) {
@@ -109,31 +112,45 @@ const App: React.FC = () => {
             }
         }
         const storyCitations = Array.from(uniqueCitations);
-        return { fullStory, storyCitations };
-      })();
+        
+        setLoadingMessage("The Sage is pondering further questions...");
+        const suggestions = await generateInitialSuggestions(fullStory, selectedLanguage.name);
+        
+        return { story: fullStory, citations: storyCitations, suggestions };
+    };
 
-      // Await animation code first, so it can start rendering immediately
-      const animationCode = await animationPromise;
-      setP5jsCode(animationCode);
+    try {
+        const animationPromise = loadAnimation();
+        const storyPromise = loadStory();
 
-      // Then await the story and its data
-      const { fullStory, storyCitations } = await storyPromise;
-      setStory(fullStory);
-      setCitations(storyCitations);
-      
-      // Then generate suggestions based on the story
-      setLoadingMessage("The Sage is pondering further questions...");
-      const suggestions = await generateInitialSuggestions(fullStory, selectedLanguage.name);
-      setInitialSuggestions(suggestions);
+        // Set animation state as soon as it's ready for immediate rendering.
+        // This makes the UI feel much faster.
+        animationPromise.then(code => {
+            setP5jsCode(code);
+        }).catch(err => {
+            console.error("Failed to load animation:", err);
+            setError("The Sage's vision could not be rendered.");
+        });
 
-      // Now that everything is generated, cache it
-      cacheService.set(topic.title, {
-          story: fullStory,
-          p5jsCode: animationCode,
-          citations: storyCitations,
-          language: selectedLanguage.code,
-          suggestions: suggestions,
-      }, selectedLanguage.code);
+        // Wait for the story content to be ready.
+        const storyData = await storyPromise;
+
+        // Set the story content state.
+        setStory(storyData.story);
+        setCitations(storyData.citations);
+        setInitialSuggestions(storyData.suggestions);
+
+        // Wait for the animation promise to resolve to get the code for caching.
+        const animationCode = await animationPromise;
+
+        // Cache the combined result for future visits.
+        cacheService.set(topic.title, {
+            story: storyData.story,
+            p5jsCode: animationCode,
+            citations: storyData.citations,
+            language: selectedLanguage.code,
+            suggestions: storyData.suggestions,
+        }, selectedLanguage.code);
       
     } catch (e) {
       console.error(e);
@@ -142,7 +159,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [isLoading, selectedLanguage]);
+  }, [isLoading, selectedLanguage.code, selectedLanguage.name]);
   
   const handleBack = () => {
     setSelectedTopic(null);

@@ -11,7 +11,7 @@ const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storytelle
 - Your task is to synthesize the provided hymns (CONTEXT) into a compelling, flowing narrative that answers the user's QUERY.
 - NEVER invent information or answer outside of the provided CONTEXT. Ground every part of your story in the hymns.
 - Weave the narrative like a story, not a list of facts. Use rich, descriptive language.
-- Cite the source of your information by referencing the Mandala and Sukta (e.g., RV 1.1) naturally within your narrative where appropriate.
+- Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)) naturally within your narrative where appropriate.
 - Begin your response directly with the story. Do not use conversational introductions like "Of course" or "Certainly, here is a story".`;
 
 const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in p5.js. Your task is to generate a self-contained, abstract, and visually captivating p5.js animation script based on a provided topic from the Rigveda.
@@ -120,13 +120,13 @@ export async function* continueConversationStream(history: string, language: str
     After the delimiter, provide a JSON array of 3-4 short, insightful follow-up questions the user could ask.
     
     Example output format:
-    This is the sage's wise reply, flowing like a river of knowledge.
+    This is the sage's wise reply, flowing like a river of knowledge (RV 1.2.3).
     [SUGGESTIONS]
     ["What does this mean?", "Tell me more about that.", "How is this related to the hymns?"]
 
     Your entire response, including the reply and suggestions, must be in ${language}.
     Your answer must be concise (less than 400 tokens).
-    Ground your answer in the hymns of the Rigveda.
+    Ground your answer in the hymns of the Rigveda. Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)) naturally within your narrative where appropriate.
     
     CONVERSATION HISTORY:
     ---
