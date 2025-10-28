@@ -14,3 +14,9 @@ export interface Topic {
   keywords: string[];
   image: string;
 }
+
+export interface CachedStory {
+  story: string;
+  p5jsCode: string;
+  citations: string[];
+}

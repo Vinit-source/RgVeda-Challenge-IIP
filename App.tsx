@@ -5,6 +5,7 @@ import { StoryDisplay } from './components/StoryDisplay';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { retrieveHymns, TOPICS_CATEGORIZED, getTopicByTitle } from './services/rigvedaService';
 import { generateStoryStream, generateP5jsAnimation } from './services/geminiService';
+import { cacheService } from './services/cacheService';
 import type { Topic, HymnChunk } from './types';
 
 const App: React.FC = () => {
@@ -34,6 +35,16 @@ const App: React.FC = () => {
         return;
     }
 
+    // Check cache first
+    const cachedData = cacheService.get(topic.title);
+    if (cachedData) {
+        setStory(cachedData.story);
+        setP5jsCode(cachedData.p5jsCode);
+        setCitations(cachedData.citations);
+        setIsLoading(false);
+        return;
+    }
+
     try {
       // Step 1: Generate Story
       setLoadingMessage("The Sage is contemplating the hymns...");
@@ -52,13 +63,21 @@ const App: React.FC = () => {
               foundCitations.forEach(c => uniqueCitations.add(c));
           }
       }
+      const storyCitations = Array.from(uniqueCitations);
       setStory(fullStory);
-      setCitations(Array.from(uniqueCitations));
+      setCitations(storyCitations);
 
       // Step 2: Generate Animation
       setLoadingMessage("The Sage is visualizing the narrative...");
       const animationCode = await generateP5jsAnimation(fullStory);
       setP5jsCode(animationCode);
+      
+      // Save to cache
+      cacheService.set(topic.title, {
+          story: fullStory,
+          p5jsCode: animationCode,
+          citations: storyCitations
+      });
       
     } catch (e) {
       console.error(e);
