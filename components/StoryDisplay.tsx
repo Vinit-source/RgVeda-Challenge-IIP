@@ -29,6 +29,15 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
+// Utility to split text into sentences more reliably.
+const splitSentences = (text: string): string[] => {
+    if (!text) return [];
+    // This regex matches sentences ending in . ! ? and handles cases where they might be followed by quotes or spaces.
+    const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g);
+    return sentences ? sentences.map(s => s.trim()).filter(Boolean) : [text.trim()].filter(Boolean);
+};
+
+
 export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack, selectedLanguage, initialSuggestions }) => {
     const [messages, setMessages] = useState<ChatMessageType[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -39,75 +48,125 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
     const [ttsState, setTtsState] = useState<{ id: string | null; status: 'IDLE' | 'LOADING' | 'PLAYING' }>({ id: null, status: 'IDLE' });
     const [ttsError, setTtsError] = useState<string | null>(null);
     const [audioCache, setAudioCache] = useState<Map<string, AudioBuffer>>(new Map());
-    const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const activePlaybackController = useRef<AbortController | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]);
 
-    const playAudioForMessage = useCallback(async (message: ChatMessageType) => {
-        if (ttsState.status === 'LOADING') {
-            return; // Don't interrupt loading
+    const stopCurrentPlayback = useCallback(() => {
+        if (activePlaybackController.current) {
+            activePlaybackController.current.abort();
+            activePlaybackController.current = null;
         }
+        scheduledSourcesRef.current.forEach(source => {
+            try { source.stop(); } catch (e) { /* ignore if already stopped */ }
+        });
+        scheduledSourcesRef.current = [];
+        setTtsState({ id: null, status: 'IDLE' });
+    }, []);
 
-        // If the clicked message is already playing, stop it.
-        if (ttsState.id === message.id && ttsState.status === 'PLAYING') {
-            if (audioSourceRef.current) {
-                audioSourceRef.current.onended = null;
-                audioSourceRef.current.stop();
-                audioSourceRef.current = null;
+    const playMessageWithStreamingAudio = useCallback(async (message: ChatMessageType) => {
+        // Stop any currently playing audio.
+        if (ttsState.status !== 'IDLE') {
+            const previousMessageId = ttsState.id;
+            stopCurrentPlayback();
+            // If the user clicked the same message that was playing, we just stop it.
+            if (previousMessageId === message.id) {
+                 // Restore the full text if the typewriter was interrupted
+                setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: message.text } : m));
+                return;
             }
-            setTtsState({ id: null, status: 'IDLE' });
-            return;
         }
         
-        // Stop any currently playing audio before starting a new one.
-        if (audioSourceRef.current) {
-            audioSourceRef.current.onended = null;
-            audioSourceRef.current.stop();
-            audioSourceRef.current = null;
-        }
+        const controller = new AbortController();
+        activePlaybackController.current = controller;
+        const { signal } = controller;
 
         setTtsState({ id: message.id, status: 'LOADING' });
         setTtsError(null);
 
+        // Clear message text to begin typewriter effect
+        setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: '' } : m));
+
         try {
-            let audioBuffer: AudioBuffer;
-            if (audioCache.has(message.id)) {
-                audioBuffer = audioCache.get(message.id)!;
-            } else {
-                const cleanedText = message.text.replace(/\(RV \d+\.\d+(\.\d+)?\)/g, '').trim();
-                if (!cleanedText) {
-                    setTtsState({ id: null, status: 'IDLE' });
-                    return;
-                }
-                const audioData = await synthesizeSpeech(cleanedText, selectedLanguage.name);
-                const ctx = audioContextRef.current!;
-                const decodedBytes = decode(audioData);
-                audioBuffer = await decodeAudioData(decodedBytes, ctx, 24000, 1);
-                setAudioCache(prev => new Map(prev).set(message.id, audioBuffer));
+            const cleanedText = message.text.replace(/\(RV \d+\.\d+(\.\d+)?\)/g, '').trim();
+            const sentences = splitSentences(cleanedText);
+            if (sentences.length === 0) {
+                 setTtsState({ id: null, status: 'IDLE' });
+                 return;
             }
-            
+
             const ctx = audioContextRef.current!;
             if (ctx.state === 'suspended') await ctx.resume();
-
-            const source = ctx.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(ctx.destination);
-            source.start();
-
-            audioSourceRef.current = source;
-            setTtsState({ id: message.id, status: 'PLAYING' });
+            let nextStartTime = ctx.currentTime;
             
-            source.onended = () => {
-                if (audioSourceRef.current === source) {
-                    audioSourceRef.current = null;
-                    setTtsState(current => (current.id === message.id ? { id: null, status: 'IDLE' } : current));
+            // This promise will resolve when the last audio chunk has finished playing.
+            let onPlaybackEnd: () => void;
+            const playbackFinishedPromise = new Promise<void>(resolve => { onPlaybackEnd = resolve; });
+
+            for (let i = 0; i < sentences.length; i++) {
+                const sentence = sentences[i];
+                if (signal.aborted) throw new Error('Aborted');
+
+                let audioBuffer: AudioBuffer;
+                const cacheKey = `${selectedLanguage.code}:${sentence}`;
+
+                if (audioCache.has(cacheKey)) {
+                    audioBuffer = audioCache.get(cacheKey)!;
+                } else {
+                    const audioData = await synthesizeSpeech(sentence, selectedLanguage.name);
+                    if (signal.aborted) throw new Error('Aborted');
+                    const decodedBytes = decode(audioData);
+                    audioBuffer = await decodeAudioData(decodedBytes, ctx, 24000, 1);
+                    setAudioCache(prev => new Map(prev).set(cacheKey, audioBuffer));
                 }
-            };
+
+                if (signal.aborted) throw new Error('Aborted');
+                
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(ctx.destination);
+                source.start(nextStartTime);
+                scheduledSourcesRef.current.push(source);
+                
+                // If this is the first sentence, update state to PLAYING
+                if(i === 0) setTtsState({ id: message.id, status: 'PLAYING' });
+
+                // Set the onended handler for the last sentence
+                if (i === sentences.length - 1) {
+                    source.onended = () => { onPlaybackEnd(); };
+                }
+
+                // Synchronized Typewriter
+                const typingDuration = audioBuffer.duration;
+                const charDelay = typingDuration > 0.1 ? (typingDuration * 1000) / sentence.length : 25;
+
+                for (const char of sentence) {
+                    if (signal.aborted) throw new Error('Aborted');
+                    setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: m.text + char } : m));
+                    await new Promise(r => setTimeout(r, charDelay));
+                }
+                // Add a space between sentences
+                setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: m.text + ' ' } : m));
+
+                nextStartTime += audioBuffer.duration;
+            }
+            
+            await playbackFinishedPromise;
+            if (!signal.aborted) {
+                 setTtsState({ id: null, status: 'IDLE' });
+            }
+
         } catch (e) {
-            console.error("TTS process failed:", e);
-            setTtsError("The Sage's voice could not be heard. Please try again.");
-            setTtsState({ id: null, status: 'IDLE' });
+            if (e.name !== 'AbortError' && e.message !== 'Aborted') {
+                console.error("Streaming TTS process failed:", e);
+                setTtsError("The Sage's voice could not be heard. Please try again.");
+                setTtsState({ id: null, status: 'IDLE' });
+                // Restore original text on failure
+                setMessages(prev => prev.map(m => m.id === message.id ? message : m));
+            }
         }
-    }, [ttsState, audioCache, selectedLanguage.name]);
+    }, [ttsState, audioCache, selectedLanguage.name, stopCurrentPlayback]);
+
 
     // Background music and audio context management
     useEffect(() => {
@@ -118,15 +177,12 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
 
         return () => {
             audioService.stop();
-            if (audioSourceRef.current) {
-                audioSourceRef.current.onended = null;
-                audioSourceRef.current.stop();
-            }
+            stopCurrentPlayback();
             if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
                 audioContextRef.current.close().then(() => audioContextRef.current = null);
             }
         };
-    }, []);
+    }, [stopCurrentPlayback]);
 
     // Effect to populate initial message from story prop
     useEffect(() => {
@@ -134,12 +190,11 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             const firstMessage: ChatMessageType = { id: `sage-${Date.now()}`, sender: 'sage', text: story };
             setMessages([firstMessage]);
             setSuggestions(initialSuggestions);
-            playAudioForMessage(firstMessage); // Autoplay the initial story
+            playMessageWithStreamingAudio(firstMessage); // Autoplay the initial story
         } else {
             setMessages([]);
             setSuggestions([]);
         }
-    // This effect should only run when the main story prop changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [story, initialSuggestions]);
 
@@ -154,17 +209,11 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         if (!userInput.trim() || isReplying) return;
         setIsReplying(true);
         setSuggestions([]);
-
-        if (audioSourceRef.current) {
-            audioSourceRef.current.onended = null;
-            audioSourceRef.current.stop();
-            audioSourceRef.current = null;
-        }
-        setTtsState({ id: null, status: 'IDLE' });
+        stopCurrentPlayback();
 
         const userMessage: ChatMessageType = { id: `user-${Date.now()}`, sender: 'user', text: userInput };
         const sagePlaceholderId = `sage-${Date.now()}`;
-        const sagePlaceholderMessage: ChatMessageType = { id: sagePlaceholderId, sender: 'sage', text: '' };
+        const sagePlaceholderMessage: ChatMessageType = { id: sagePlaceholderId, sender: 'sage', text: '...' };
 
         const currentMessages = [...messages, userMessage];
         setMessages([...currentMessages, sagePlaceholderMessage]);
@@ -175,34 +224,6 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         try {
             const stream = continueConversationStream(history, selectedLanguage.name);
             for await (const chunk of stream) {
-                const suggestionDelimiter = '[SUGGESTIONS]';
-                let chunkToType = chunk;
-                
-                const combinedTextForCheck = fullResponseText + chunk;
-                const delimiterIndex = combinedTextForCheck.indexOf(suggestionDelimiter);
-
-                if (delimiterIndex !== -1) {
-                    const delimiterStartsAt = delimiterIndex - fullResponseText.length;
-                    if (delimiterStartsAt >= 0 && delimiterStartsAt < chunk.length) {
-                        chunkToType = chunk.substring(0, delimiterStartsAt);
-                    } else if (delimiterStartsAt < 0) {
-                        chunkToType = '';
-                    }
-                }
-                
-                if (chunkToType) {
-                    for (const char of chunkToType.split('')) {
-                        setMessages(prev => prev.map(m => {
-                            if (m.id === sagePlaceholderId) {
-                                const textWithoutCursor = m.text.endsWith('▍') ? m.text.slice(0, -1) : m.text;
-                                return { ...m, text: textWithoutCursor + char + '▍' };
-                            }
-                            return m;
-                        }));
-                        await new Promise(r => setTimeout(r, 25)); // Typing speed
-                    }
-                }
-                
                 fullResponseText += chunk;
             }
 
@@ -223,9 +244,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             }
 
             const finalSageMessage = { id: sagePlaceholderId, sender: 'sage' as const, text: finalReply };
+            // Replace placeholder with the final message object, but text will be handled by streaming player.
             setMessages(prev => prev.map(m => m.id === sagePlaceholderId ? finalSageMessage : m));
             setSuggestions(finalSuggestions);
-            playAudioForMessage(finalSageMessage);
+            playMessageWithStreamingAudio(finalSageMessage);
 
         } catch (e) {
             console.error(e);
@@ -234,7 +256,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         } finally {
             setIsReplying(false);
         }
-    }, [messages, selectedLanguage.name, playAudioForMessage, isReplying]);
+    }, [messages, selectedLanguage.name, playMessageWithStreamingAudio, isReplying, stopCurrentPlayback]);
 
 
     return (
@@ -245,7 +267,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             <p className="text-stone-600">{topic.description}</p>
         </div>
         <button
-          onClick={onBack}
+          onClick={() => {
+              stopCurrentPlayback();
+              onBack();
+          }}
           className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors duration-200 shadow"
         >
           &larr; Back
@@ -256,7 +281,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         <div className="lg:w-1/2 relative aspect-video rounded-lg overflow-hidden shadow-inner bg-stone-900">
             {isLoading && !p5jsCode && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/80 z-10 text-amber-100">
-                    <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -265,7 +290,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             )}
             <VedicAnimation 
                 p5jsCode={p5jsCode}
-                isPlaying={!isLoading}
+                isPlaying={true} // Animation is now independent
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
             <div className="absolute bottom-4 left-4 text-white">
@@ -279,11 +304,11 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                     <ChatMessage
                         key={msg.id}
                         message={msg}
-                        onPlayMessage={playAudioForMessage}
+                        onPlayMessage={playMessageWithStreamingAudio}
                         ttsState={ttsState}
                     />
                 ))}
-                {isReplying && messages[messages.length-1]?.sender === 'sage' && messages[messages.length-1]?.text.endsWith('▍') ? null : (isReplying && <div className="flex justify-center p-4"><LoadingSpinner message="The Sage is contemplating..."/></div>) }
+                {isReplying && <div className="flex justify-center p-4"><LoadingSpinner message="The Sage is contemplating..."/></div>}
                 {isLoading && messages.length === 0 && <div className="flex justify-center p-4"><LoadingSpinner message={loadingMessage}/></div>}
                 {!isLoading && messages.length === 0 && <p className="text-stone-500 p-4">The sage prepares to speak...</p>}
             </div>
@@ -300,10 +325,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                       </button>
                     </div>
                  )}
-                 <Suggestions suggestions={suggestions} onSuggestionClick={handleSendMessage} disabled={isReplying || isLoading} />
+                 <Suggestions suggestions={suggestions} onSuggestionClick={handleSendMessage} disabled={isReplying || isLoading || ttsState.status !== 'IDLE'} />
                  <ChatInput
                     onSendMessage={handleSendMessage}
-                    disabled={isReplying || isLoading}
+                    disabled={isReplying || isLoading || ttsState.status !== 'IDLE'}
                     languageCode={selectedLanguage.code}
                  />
             </div>
