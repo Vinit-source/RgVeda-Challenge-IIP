@@ -1,82 +1,29 @@
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Playbook } from './components/Playbook';
 import { StoryDisplay } from './components/StoryDisplay';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { retrieveHymns, TOPICS, getTopicByTitle } from './services/rigvedaService';
-import { generateStoryStream, synthesizeSpeech } from './services/geminiService';
-import { useAudioPlayer } from './hooks/useAudioPlayer';
+import { generateStoryStream, generateP5jsAnimation } from './services/geminiService';
 import type { Topic, HymnChunk } from './types';
 
 const App: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [story, setStory] = useState<string>('');
+  const [story, setStory] = useState<string | null>(null);
+  const [p5jsCode, setP5jsCode] = useState<string | null>(null);
   const [citations, setCitations] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-
-  const { addToQueue, isPlaying } = useAudioPlayer();
-  const storyBuffer = useRef<string>('');
-
-  const processStoryStream = useCallback(async <T,>(
-    stream: AsyncGenerator<T, void, unknown>,
-    processChunk: (chunk: T) => string
-  ) => {
-    let fullStory = '';
-    const uniqueCitations = new Set<string>();
-
-    for await (const chunk of stream) {
-      const text = processChunk(chunk);
-      fullStory += text;
-      storyBuffer.current += text;
-      setStory(prev => prev + text);
-      
-      const citationRegex = /RV \d+\.\d+/g;
-      const foundCitations = fullStory.match(citationRegex);
-      if (foundCitations) {
-          foundCitations.forEach(c => uniqueCitations.add(c));
-          setCitations(Array.from(uniqueCitations));
-      }
-
-      // Buffer sentences for TTS
-      const sentences = storyBuffer.current.split(/(?<=[.?!])\s+/);
-      if (sentences.length > 1) {
-        const completeSentences = sentences.slice(0, -1);
-        storyBuffer.current = sentences[sentences.length - 1];
-
-        for (const sentence of completeSentences) {
-          if (sentence.trim().length > 0) {
-            try {
-              const audioData = await synthesizeSpeech(sentence);
-              addToQueue(audioData);
-            } catch (e) {
-              console.error("Speech synthesis failed for sentence:", e);
-              // Continue without audio for this sentence
-            }
-          }
-        }
-      }
-    }
-     // Process any remaining text in the buffer
-    if (storyBuffer.current.trim().length > 0) {
-        try {
-            const audioData = await synthesizeSpeech(storyBuffer.current);
-            addToQueue(audioData);
-            storyBuffer.current = '';
-        } catch(e) {
-            console.error("Speech synthesis failed for remaining buffer:", e);
-        }
-    }
-  }, [addToQueue]);
 
   const handleTopicSelect = useCallback(async (topicTitle: string) => {
     if (isLoading) return;
 
     setIsLoading(true);
     setError(null);
-    setStory('');
+    setStory(null);
+    setP5jsCode(null);
     setCitations([]);
-    storyBuffer.current = '';
     
     const topic = getTopicByTitle(topicTitle);
     setSelectedTopic(topic);
@@ -88,19 +35,46 @@ const App: React.FC = () => {
     }
 
     try {
+      // Step 1: Generate Story
+      setLoadingMessage("The Sage is contemplating the hymns...");
       const context: HymnChunk[] = retrieveHymns(topic.keywords);
       const query = `As the Vedic Sage, tell me a story about ${topic.title}. Explain its significance and meaning, drawing upon the ancient hymns.`;
       
       const storyStream = generateStoryStream(query, context);
-      await processStoryStream(storyStream, (chunk) => chunk.text);
+      
+      let fullStory = '';
+      const uniqueCitations = new Set<string>();
+      for await (const chunk of storyStream) {
+          fullStory += chunk.text;
+          const citationRegex = /RV \d+\.\d+/g;
+          const foundCitations = fullStory.match(citationRegex);
+          if (foundCitations) {
+              foundCitations.forEach(c => uniqueCitations.add(c));
+          }
+      }
+      setStory(fullStory);
+      setCitations(Array.from(uniqueCitations));
+
+      // Step 2: Generate Animation
+      setLoadingMessage("The Sage is visualizing the narrative...");
+      const animationCode = await generateP5jsAnimation(fullStory);
+      setP5jsCode(animationCode);
       
     } catch (e) {
       console.error(e);
       setError("The sage is currently in deep meditation. Please try again later.");
     } finally {
       setIsLoading(false);
+      setLoadingMessage('');
     }
-  }, [isLoading, processStoryStream]);
+  }, [isLoading]);
+  
+  const handleBack = () => {
+    setSelectedTopic(null);
+    setStory(null);
+    setP5jsCode(null);
+    setCitations([]);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-amber-50 to-orange-100 text-stone-900 flex flex-col items-center p-4 sm:p-6 md:p-8">
@@ -114,10 +88,11 @@ const App: React.FC = () => {
           <StoryDisplay
             topic={selectedTopic}
             story={story}
+            p5jsCode={p5jsCode}
             citations={citations}
             isLoading={isLoading}
-            isPlaying={isPlaying}
-            onBack={() => setSelectedTopic(null)}
+            loadingMessage={loadingMessage}
+            onBack={handleBack}
           />
         ) : (
           <div>
