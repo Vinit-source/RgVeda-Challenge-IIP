@@ -13,6 +13,7 @@ const getAudioContext = (): AudioContext => {
 
 export const useAudioPlayer = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const audioQueue = useRef<string[]>([]);
   const isProcessing = useRef<boolean>(false);
   const nextStartTime = useRef<number>(0);
@@ -56,10 +57,12 @@ export const useAudioPlayer = () => {
             playNextInQueue();
         };
 
-      } catch (error) {
-        console.error("Error playing audio:", error);
+      } catch (e) {
+        console.error("Error playing audio:", e);
+        setError("The Sage's voice faltered. An audio playback error occurred.");
+        audioQueue.current = []; // Clear queue to prevent retries
         isProcessing.current = false;
-        playNextInQueue();
+        setIsPlaying(false);
       }
     } else {
         isProcessing.current = false;
@@ -68,11 +71,16 @@ export const useAudioPlayer = () => {
   }, [sources]);
 
   const addToQueue = useCallback((audioData: string) => {
+    setError(null); // Clear any previous error on new data
     audioQueue.current.push(audioData);
     if (!isProcessing.current) {
       playNextInQueue();
     }
   }, [playNextInQueue]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -85,5 +93,5 @@ export const useAudioPlayer = () => {
     };
   }, [sources]);
 
-  return { addToQueue, isPlaying };
+  return { addToQueue, isPlaying, error, clearError };
 };

@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Topic } from '../types';
 import { VedicAnimation } from './VedicAnimation';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { synthesizeSpeech } from '../services/geminiService';
+import { audioService } from '../services/audioService';
 
 interface StoryDisplayProps {
   topic: Topic;
@@ -24,11 +26,20 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
 );
 
 export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack }) => {
-    const { addToQueue, isPlaying } = useAudioPlayer();
+    const { addToQueue, isPlaying, error: audioError, clearError: clearAudioError } = useAudioPlayer();
     const [displayedStory, setDisplayedStory] = useState('');
     const [isAnimationReady, setIsAnimationReady] = useState(false);
     const hasStartedPlayback = useRef<boolean>(false);
     
+    useEffect(() => {
+        audioService.play();
+
+        // Cleanup function to stop music when component unmounts
+        return () => {
+            audioService.stop();
+        };
+    }, []); // Empty dependency array means this runs once on mount and cleanup runs on unmount
+
     const processTts = useCallback(async (fullStory: string) => {
         const sentences = fullStory.split(/(?<=[.?!])\s+/);
 
@@ -73,8 +84,9 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             setDisplayedStory('');
             setIsAnimationReady(false);
             hasStartedPlayback.current = false;
+            clearAudioError();
         }
-    }, [story]);
+    }, [story, clearAudioError]);
 
     return (
     <div className="bg-white/50 rounded-lg shadow-lg p-4 sm:p-8 w-full border border-amber-200/80">
@@ -114,16 +126,35 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             </div>
         </div>
 
-        <div className="lg:w-1/2">
+        <div className="lg:w-1/2 flex flex-col">
             <div className="h-96 overflow-y-auto p-4 bg-orange-50/70 rounded-md border border-amber-200 prose prose-stone max-w-none">
                 { (displayedStory || isLoading) ? (
                     <p className="whitespace-pre-wrap">{displayedStory}{story && displayedStory.length < story.length && <span className="inline-block w-2 h-4 bg-amber-800 animate-pulse ml-1"></span>}</p>
                  ) : <p className="text-stone-500">The sage prepares to speak...</p>
                 }
             </div>
-             {isLoading && <div className="mt-4"><LoadingSpinner message={loadingMessage}/></div>}
-             {citations.length > 0 && (
-                <div className="mt-4">
+            
+            {/* Status Area */}
+            <div className="mt-4 flex-grow flex items-center">
+                 {isLoading && <LoadingSpinner message={loadingMessage}/>}
+                 
+                 {audioError && !isLoading && (
+                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-r-lg flex justify-between items-center w-full" role="alert">
+                      <div>
+                        <p className="font-bold">Audio Playback Error</p>
+                        <p className="text-sm">{audioError}</p>
+                      </div>
+                      <button onClick={clearAudioError} className="ml-4 p-1 rounded-full hover:bg-red-200" aria-label="Dismiss">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                 )}
+            </div>
+
+             {citations.length > 0 && !isLoading && (
+                <div className="mt-auto pt-4">
                     <h4 className="font-bold text-stone-700">Sources from the Rigveda:</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {citations.map(c => <span key={c} className="bg-amber-200 text-amber-800 text-xs font-mono px-2 py-1 rounded-full">{c}</span>)}
