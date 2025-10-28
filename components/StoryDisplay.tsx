@@ -48,9 +48,19 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
     const [ttsState, setTtsState] = useState<{ id: string | null; status: 'IDLE' | 'LOADING' | 'PLAYING' }>({ id: null, status: 'IDLE' });
     const [ttsError, setTtsError] = useState<string | null>(null);
     const [audioCache, setAudioCache] = useState<Map<string, AudioBuffer>>(new Map());
+    const [playbackRate, setPlaybackRate] = useState(1.25);
     const activePlaybackController = useRef<AbortController | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+
+    const handlePlaybackRateChange = () => {
+        setPlaybackRate(currentRate => {
+            if (currentRate === 1) return 1.25;
+            if (currentRate === 1.25) return 1.5;
+            if (currentRate === 1.5) return 1;
+            return 1.25; // Default case
+        });
+    };
 
     const stopCurrentPlayback = useCallback(() => {
         if (activePlaybackController.current) {
@@ -139,6 +149,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                     ? fetchAndDecodeSentence(sentences[i + 1], signal)
                     : Promise.resolve(null);
                 
+                // FIX: Ensure the AudioContext is awake before decoding, which happens inside the awaited promise.
+                // This prevents failures on slower speeds where the browser might suspend the context.
+                if (ctx.state === 'suspended') await ctx.resume();
+                
                 // Wait for the *current* sentence's audio to be ready.
                 const audioBuffer = await audioBufferPromise;
                 
@@ -151,6 +165,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 
                 const source = ctx.createBufferSource();
                 source.buffer = audioBuffer;
+                source.playbackRate.value = playbackRate;
                 source.connect(ctx.destination);
                 source.start(nextStartTime);
                 scheduledSourcesRef.current.push(source);
@@ -161,7 +176,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                     source.onended = () => { onPlaybackEnd(); };
                 }
 
-                const typingDuration = audioBuffer.duration;
+                const typingDuration = audioBuffer.duration / playbackRate;
                 const charDelay = typingDuration > 0.1 ? (typingDuration * 1000) / sentence.length : 25;
 
                 for (const char of sentence) {
@@ -171,7 +186,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 }
                 setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: m.text + ' ' } : m));
 
-                nextStartTime += audioBuffer.duration;
+                nextStartTime += audioBuffer.duration / playbackRate;
                 audioBufferPromise = nextAudioBufferPromise; // For the next iteration, we'll await the promise we just started.
             }
             
@@ -188,7 +203,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 setMessages(prev => prev.map(m => m.id === message.id ? message : m));
             }
         }
-    }, [ttsState, audioCache, selectedLanguage.name, selectedLanguage.code, stopCurrentPlayback]);
+    }, [ttsState, audioCache, selectedLanguage.name, selectedLanguage.code, stopCurrentPlayback, playbackRate]);
 
 
     // Background music and audio context management
@@ -288,15 +303,24 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             <h2 className="text-3xl sm:text-4xl font-display text-amber-900">{topic.title}</h2>
             <p className="text-stone-600">{topic.description}</p>
         </div>
-        <button
-          onClick={() => {
-              stopCurrentPlayback();
-              onBack();
-          }}
-          className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors duration-200 shadow"
-        >
-          &larr; Back
-        </button>
+        <div className="flex items-center gap-4">
+             <button
+                onClick={handlePlaybackRateChange}
+                className="bg-white/50 text-amber-800 px-4 py-2 rounded-md hover:bg-white transition-colors duration-200 shadow border border-amber-300 font-mono text-sm"
+                title={`Change playback speed (current: ${playbackRate}x)`}
+            >
+                {playbackRate}x
+            </button>
+            <button
+              onClick={() => {
+                  stopCurrentPlayback();
+                  onBack();
+              }}
+              className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors duration-200 shadow"
+            >
+              &larr; Back
+            </button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
