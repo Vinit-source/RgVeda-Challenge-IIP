@@ -20,3 +20,8 @@ export interface CachedStory {
   p5jsCode: string;
   citations: string[];
 }
+
+export interface Language {
+  code: string;
+  name: string;
+}

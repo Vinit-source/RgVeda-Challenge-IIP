@@ -89,12 +89,12 @@ export async function generateP5jsAnimation(story: string): Promise<string> {
 }
 
 
-export async function synthesizeSpeech(text: string): Promise<string> {
+export async function synthesizeSpeech(text: string, language: string): Promise<string> {
     const model = 'gemini-2.5-flash-preview-tts';
     
     const response = await ai.models.generateContent({
         model,
-        contents: [{ parts: [{ text: `Say with a wise, ancient, and slightly poetic tone: ${text}` }] }],
+        contents: [{ parts: [{ text: `Say with a wise, ancient, and slightly poetic tone, in ${language}: ${text}` }] }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Topic } from '../types';
+import type { Topic, Language } from '../types';
 import { VedicAnimation } from './VedicAnimation';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { synthesizeSpeech } from '../services/geminiService';
@@ -14,6 +14,7 @@ interface StoryDisplayProps {
   isLoading: boolean;
   loadingMessage: string;
   onBack: () => void;
+  selectedLanguage: Language;
 }
 
 const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
@@ -25,7 +26,7 @@ const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
-export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack }) => {
+export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack, selectedLanguage }) => {
     const { addToQueue, isPlaying, error: audioError, clearError: clearAudioError } = useAudioPlayer();
     const [displayedStory, setDisplayedStory] = useState('');
     const [isAnimationReady, setIsAnimationReady] = useState(false);
@@ -46,14 +47,14 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         for (const sentence of sentences) {
           if (sentence.trim().length > 0) {
             try {
-              const audioData = await synthesizeSpeech(sentence);
+              const audioData = await synthesizeSpeech(sentence, selectedLanguage.name);
               addToQueue(audioData);
             } catch (e) {
               console.error("Speech synthesis failed for sentence:", e);
             }
           }
         }
-    }, [addToQueue]);
+    }, [addToQueue, selectedLanguage.name]);
 
     const startTypewriter = useCallback((fullStory: string) => {
         let i = 0;

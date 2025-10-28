@@ -2,14 +2,17 @@
 import React, { useState, useCallback } from 'react';
 import { Playbook } from './components/Playbook';
 import { StoryDisplay } from './components/StoryDisplay';
+import { LanguageSelector } from './components/LanguageSelector';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { retrieveHymns, TOPICS_CATEGORIZED, getTopicByTitle } from './services/rigvedaService';
 import { generateStoryStream, generateP5jsAnimation } from './services/geminiService';
 import { cacheService } from './services/cacheService';
-import type { Topic, HymnChunk } from './types';
+import { LANGUAGES } from './services/languageService';
+import type { Topic, HymnChunk, Language } from './types';
 
 const App: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(LANGUAGES[0]);
   const [story, setStory] = useState<string | null>(null);
   const [p5jsCode, setP5jsCode] = useState<string | null>(null);
   const [citations, setCitations] = useState<string[]>([]);
@@ -35,8 +38,8 @@ const App: React.FC = () => {
         return;
     }
 
-    // Check cache first
-    const cachedData = cacheService.get(topic.title);
+    // Check localStorage cache (now language-aware)
+    const cachedData = cacheService.get(topic.title, selectedLanguage.code);
     if (cachedData) {
         setStory(cachedData.story);
         setP5jsCode(cachedData.p5jsCode);
@@ -46,10 +49,10 @@ const App: React.FC = () => {
     }
 
     try {
-      // Step 1: Generate Story
+      // Generate story if not found in cache
       setLoadingMessage("The Sage is contemplating the hymns...");
       const context: HymnChunk[] = retrieveHymns(topic.keywords);
-      const query = `As the Vedic Sage, tell me a story about ${topic.title}. Explain its significance and meaning, drawing upon the ancient hymns.`;
+      const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
       
       const storyStream = generateStoryStream(query, context);
       
@@ -67,17 +70,17 @@ const App: React.FC = () => {
       setStory(fullStory);
       setCitations(storyCitations);
 
-      // Step 2: Generate Animation
+      // Generate Animation
       setLoadingMessage("The Sage is visualizing the narrative...");
       const animationCode = await generateP5jsAnimation(fullStory);
       setP5jsCode(animationCode);
       
-      // Save to cache
+      // Save to localStorage cache
       cacheService.set(topic.title, {
           story: fullStory,
           p5jsCode: animationCode,
           citations: storyCitations
-      });
+      }, selectedLanguage.code);
       
     } catch (e) {
       console.error(e);
@@ -86,7 +89,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [isLoading]);
+  }, [isLoading, selectedLanguage]);
   
   const handleBack = () => {
     setSelectedTopic(null);
@@ -112,10 +115,19 @@ const App: React.FC = () => {
             isLoading={isLoading}
             loadingMessage={loadingMessage}
             onBack={handleBack}
+            selectedLanguage={selectedLanguage}
           />
         ) : (
           <div>
             <div className="text-center mb-8 p-4 bg-amber-50/50 rounded-lg border border-amber-200">
+                <div className="max-w-xs mx-auto mb-6">
+                  <LanguageSelector
+                    languages={LANGUAGES}
+                    selectedLanguage={selectedLanguage}
+                    onSelect={setSelectedLanguage}
+                    disabled={isLoading}
+                  />
+                </div>
                 <h2 className="text-2xl font-display text-amber-900">Choose a Path of Wisdom</h2>
                 <p className="mt-2 text-stone-700 max-w-3xl mx-auto">Select a deity, concept, or hymn from the sacred playbook below. The Sage will weave a tale from the ancient verses of the Rigveda, illuminating its timeless knowledge.</p>
             </div>
