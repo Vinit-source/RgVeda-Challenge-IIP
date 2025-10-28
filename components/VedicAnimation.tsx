@@ -5,10 +5,9 @@ declare let p5: any;
 interface VedicAnimationProps {
   isPlaying: boolean;
   p5jsCode: string | null;
-  onReady?: () => void;
 }
 
-export const VedicAnimation: React.FC<VedicAnimationProps> = ({ isPlaying, p5jsCode, onReady }) => {
+export const VedicAnimation: React.FC<VedicAnimationProps> = ({ isPlaying, p5jsCode }) => {
   const sketchRef = useRef<HTMLDivElement>(null);
   const p5Instance = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +38,6 @@ export const VedicAnimation: React.FC<VedicAnimationProps> = ({ isPlaying, p5jsC
               if (typeof originalSetup === 'function') {
                 originalSetup();
               }
-              onReady?.();
             }
           };
 
@@ -63,7 +61,7 @@ export const VedicAnimation: React.FC<VedicAnimationProps> = ({ isPlaying, p5jsC
     }
 
     return cleanup;
-  }, [p5jsCode, onReady]);
+  }, [p5jsCode]);
 
   useEffect(() => {
     if (p5Instance.current && typeof p5Instance.current.isLooping === 'function') {

@@ -88,35 +88,45 @@ const App: React.FC = () => {
         return;
       }
 
-      // 4. Generate story if not found in any cache
-      setLoadingMessage("The Sage is contemplating the hymns...");
+      // 4. Generate story and animation if not found in any cache
+      setLoadingMessage("The Sage is contemplating the hymns and visualizing the narrative...");
       const context: HymnChunk[] = retrieveHymns(topic.keywords);
-      const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
       
-      const storyStream = generateStoryStream(query, context);
+      // Start both tasks in parallel
+      const animationPromise = generateP5jsAnimation(topic.title, topic.description);
       
-      let fullStory = '';
-      const uniqueCitations = new Set<string>();
-      for await (const chunk of storyStream) {
-          fullStory += chunk.text;
-          const citationRegex = /RV \d+\.\d+/g;
-          const foundCitations = fullStory.match(citationRegex);
-          if (foundCitations) {
-              foundCitations.forEach(c => uniqueCitations.add(c));
-          }
-      }
-      const storyCitations = Array.from(uniqueCitations);
+      const storyPromise = (async () => {
+        const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
+        const storyStream = generateStoryStream(query, context);
+        let fullStory = '';
+        const uniqueCitations = new Set<string>();
+        for await (const chunk of storyStream) {
+            fullStory += chunk.text;
+            const citationRegex = /RV \d+\.\d+(\.\d+)?/g;
+            const foundCitations = fullStory.match(citationRegex);
+            if (foundCitations) {
+                foundCitations.forEach(c => uniqueCitations.add(c));
+            }
+        }
+        const storyCitations = Array.from(uniqueCitations);
+        return { fullStory, storyCitations };
+      })();
+
+      // Await animation code first, so it can start rendering immediately
+      const animationCode = await animationPromise;
+      setP5jsCode(animationCode);
+
+      // Then await the story and its data
+      const { fullStory, storyCitations } = await storyPromise;
       setStory(fullStory);
       setCitations(storyCitations);
       
+      // Then generate suggestions based on the story
       setLoadingMessage("The Sage is pondering further questions...");
       const suggestions = await generateInitialSuggestions(fullStory, selectedLanguage.name);
       setInitialSuggestions(suggestions);
 
-      setLoadingMessage("The Sage is visualizing the narrative...");
-      const animationCode = await generateP5jsAnimation(fullStory);
-      setP5jsCode(animationCode);
-      
+      // Now that everything is generated, cache it
       cacheService.set(topic.title, {
           story: fullStory,
           p5jsCode: animationCode,

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { HymnChunk, SageResponse } from '../types';
 
@@ -15,11 +14,11 @@ const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storytelle
 - Cite the source of your information by referencing the Mandala and Sukta (e.g., RV 1.1) naturally within your narrative where appropriate.
 - Begin your response directly with the story. Do not use conversational introductions like "Of course" or "Certainly, here is a story".`;
 
-const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in p5.js. Your task is to generate a self-contained, abstract, and visually captivating p5.js animation script based on a provided story from the Rigveda.
+const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in p5.js. Your task is to generate a self-contained, abstract, and visually captivating p5.js animation script based on a provided topic from the Rigveda.
 
 **INSTRUCTIONS:**
-1.  **Analyze the Story:** Read the provided story and identify key themes, moods, and visual elements (e.g., fire, storms, light, flowing rivers, celestial beings).
-2.  **Abstract Visualization:** Do NOT create a literal representation. Generate an abstract, beautiful, and continuously looping animation that captures the *essence* of the story. Think particle systems, flow fields, generative patterns, shimmering light, etc.
+1.  **Analyze the Topic:** Read the provided topic title and description to understand its key themes, moods, and visual elements (e.g., fire for Agni, storms for Indra, light for Surya, flowing rivers for Saraswati).
+2.  **Visualization:** Generate a beautiful, and continuously looping animation that captures the *essence* of the topic. Identify the main character being addressed in the story and display their qualities as described in the hymns. Think particle systems, flow fields, generative patterns, shimmering light, etc.
 3.  **Code Requirements:**
     *   The code MUST be a single block of JavaScript that will be executed by \`new Function('p', code)\`.
     *   All p5.js functions must be called on the \`p\` object (e.g., \`p.background\`, \`p.fill\`).
@@ -27,15 +26,13 @@ const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in
     *   You can optionally define \`p.windowResized = () => {}\`.
     *   **CRITICAL**: DO NOT call \`p.createCanvas()\` or \`p.resizeCanvas()\`. The host environment will handle this. Assume the canvas exists and its size is available via \`p.width\` and \`p.height\`.
     *   The animation should be performant and loop smoothly.
-    *   Use color palettes that are thematic to the story (e.g., oranges/reds for Agni, blues/whites for Varuna, golds for Ushas).
+    *   Use color palettes that are thematic to the topic (e.g., oranges/reds for Agni, blues/whites for Varuna, golds for Ushas).
 4.  **Output Format:**
     *   Return ONLY the raw JavaScript code inside a single markdown block (e.g. \`\`\`javascript\n...\n\`\`\`).
     *   Do NOT include any explanations or surrounding text outside the markdown block.
 
-**STORY:**
----
-{STORY_TEXT}
----
+**TOPIC:** {TOPIC_TITLE}
+**DESCRIPTION:** {TOPIC_DESCRIPTION}
 `;
 
 const SAGE_RESPONSE_SCHEMA = {
@@ -79,12 +76,16 @@ export async function* generateStoryStream(query: string, context: HymnChunk[]):
     }
 }
 
-export async function generateP5jsAnimation(story: string): Promise<string> {
+export async function generateP5jsAnimation(topicTitle: string, topicDescription: string): Promise<string> {
     const model = 'gemini-2.5-pro';
+    
+    const prompt = P5JS_GENERATION_PROMPT
+        .replace('{TOPIC_TITLE}', topicTitle)
+        .replace('{TOPIC_DESCRIPTION}', topicDescription);
     
     const response = await ai.models.generateContent({
         model,
-        contents: P5JS_GENERATION_PROMPT.replace('{STORY_TEXT}', story),
+        contents: prompt,
     });
 
     let code = response.text;
