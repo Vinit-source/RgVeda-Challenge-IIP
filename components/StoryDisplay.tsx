@@ -65,33 +65,59 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
     }, []);
 
     const playMessageWithStreamingAudio = useCallback(async (message: ChatMessageType) => {
-        // Stop any currently playing audio.
         if (ttsState.status !== 'IDLE') {
             const previousMessageId = ttsState.id;
             stopCurrentPlayback();
-            // If the user clicked the same message that was playing, we just stop it.
             if (previousMessageId === message.id) {
-                 // Restore the full text if the typewriter was interrupted
                 setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: message.text } : m));
                 return;
             }
         }
         
+        const fetchAndDecodeSentence = async (sentence: string, signal: AbortSignal): Promise<AudioBuffer | null> => {
+            try {
+                if (signal.aborted) return null;
+                const cacheKey = `${selectedLanguage.code}:${sentence}`;
+                
+                if (audioCache.has(cacheKey)) {
+                    return audioCache.get(cacheKey)!;
+                }
+                
+                const audioData = await synthesizeSpeech(sentence, selectedLanguage.name);
+                if (signal.aborted) return null;
+                
+                const decodedBytes = decode(audioData);
+                const ctx = audioContextRef.current!;
+                const audioBuffer = await decodeAudioData(decodedBytes, ctx, 24000, 1);
+                
+                if (!signal.aborted) {
+                    setAudioCache(prev => new Map(prev).set(cacheKey, audioBuffer));
+                }
+
+                return audioBuffer;
+            } catch (e) {
+                if (e.name !== 'AbortError' && e.message !== 'Aborted') {
+                    console.error(`Failed to fetch/decode audio for sentence: "${sentence}"`, e);
+                }
+                return null;
+            }
+        };
+
         const controller = new AbortController();
         activePlaybackController.current = controller;
         const { signal } = controller;
 
         setTtsState({ id: message.id, status: 'LOADING' });
         setTtsError(null);
-
-        // Clear message text to begin typewriter effect
         setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: '' } : m));
 
         try {
             const cleanedText = message.text.replace(/\(RV \d+\.\d+(\.\d+)?\)/g, '').trim();
             const sentences = splitSentences(cleanedText);
+            
             if (sentences.length === 0) {
                  setTtsState({ id: null, status: 'IDLE' });
+                 setMessages(prev => prev.map(m => m.id === message.id ? message : m));
                  return;
             }
 
@@ -99,28 +125,29 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             if (ctx.state === 'suspended') await ctx.resume();
             let nextStartTime = ctx.currentTime;
             
-            // This promise will resolve when the last audio chunk has finished playing.
             let onPlaybackEnd: () => void;
             const playbackFinishedPromise = new Promise<void>(resolve => { onPlaybackEnd = resolve; });
+
+            let audioBufferPromise: Promise<AudioBuffer | null> | null = fetchAndDecodeSentence(sentences[0], signal);
 
             for (let i = 0; i < sentences.length; i++) {
                 const sentence = sentences[i];
                 if (signal.aborted) throw new Error('Aborted');
 
-                let audioBuffer: AudioBuffer;
-                const cacheKey = `${selectedLanguage.code}:${sentence}`;
-
-                if (audioCache.has(cacheKey)) {
-                    audioBuffer = audioCache.get(cacheKey)!;
-                } else {
-                    const audioData = await synthesizeSpeech(sentence, selectedLanguage.name);
-                    if (signal.aborted) throw new Error('Aborted');
-                    const decodedBytes = decode(audioData);
-                    audioBuffer = await decodeAudioData(decodedBytes, ctx, 24000, 1);
-                    setAudioCache(prev => new Map(prev).set(cacheKey, audioBuffer));
+                // Start fetching the *next* sentence's audio in parallel.
+                const nextAudioBufferPromise = (i + 1 < sentences.length)
+                    ? fetchAndDecodeSentence(sentences[i + 1], signal)
+                    : Promise.resolve(null);
+                
+                // Wait for the *current* sentence's audio to be ready.
+                const audioBuffer = await audioBufferPromise;
+                
+                if (!audioBuffer) {
+                    console.warn(`Skipping sentence due to audio fetch failure: "${sentence}"`);
+                    if (i === sentences.length - 1) onPlaybackEnd();
+                    audioBufferPromise = nextAudioBufferPromise; // Move to the next promise
+                    continue;
                 }
-
-                if (signal.aborted) throw new Error('Aborted');
                 
                 const source = ctx.createBufferSource();
                 source.buffer = audioBuffer;
@@ -128,15 +155,12 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 source.start(nextStartTime);
                 scheduledSourcesRef.current.push(source);
                 
-                // If this is the first sentence, update state to PLAYING
                 if(i === 0) setTtsState({ id: message.id, status: 'PLAYING' });
 
-                // Set the onended handler for the last sentence
                 if (i === sentences.length - 1) {
                     source.onended = () => { onPlaybackEnd(); };
                 }
 
-                // Synchronized Typewriter
                 const typingDuration = audioBuffer.duration;
                 const charDelay = typingDuration > 0.1 ? (typingDuration * 1000) / sentence.length : 25;
 
@@ -145,10 +169,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                     setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: m.text + char } : m));
                     await new Promise(r => setTimeout(r, charDelay));
                 }
-                // Add a space between sentences
                 setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: m.text + ' ' } : m));
 
                 nextStartTime += audioBuffer.duration;
+                audioBufferPromise = nextAudioBufferPromise; // For the next iteration, we'll await the promise we just started.
             }
             
             await playbackFinishedPromise;
@@ -161,11 +185,10 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 console.error("Streaming TTS process failed:", e);
                 setTtsError("The Sage's voice could not be heard. Please try again.");
                 setTtsState({ id: null, status: 'IDLE' });
-                // Restore original text on failure
                 setMessages(prev => prev.map(m => m.id === message.id ? message : m));
             }
         }
-    }, [ttsState, audioCache, selectedLanguage.name, stopCurrentPlayback]);
+    }, [ttsState, audioCache, selectedLanguage.name, selectedLanguage.code, stopCurrentPlayback]);
 
 
     // Background music and audio context management
@@ -244,7 +267,6 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             }
 
             const finalSageMessage = { id: sagePlaceholderId, sender: 'sage' as const, text: finalReply };
-            // Replace placeholder with the final message object, but text will be handled by streaming player.
             setMessages(prev => prev.map(m => m.id === sagePlaceholderId ? finalSageMessage : m));
             setSuggestions(finalSuggestions);
             playMessageWithStreamingAudio(finalSageMessage);
@@ -281,7 +303,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         <div className="lg:w-1/2 relative aspect-video rounded-lg overflow-hidden shadow-inner bg-stone-900">
             {isLoading && !p5jsCode && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-900/80 z-10 text-amber-100">
-                    <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-8 w-8 text-amber-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
