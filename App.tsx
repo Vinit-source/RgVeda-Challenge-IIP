@@ -10,6 +10,7 @@ import { translateCachedStory } from './services/translationService';
 import { LANGUAGES } from './services/languageService';
 import { prefetchedStories } from './services/prefetched-stories';
 import type { Topic, HymnChunk, Language } from './types';
+import { ApiKeyManager } from './components/ApiKeyManager';
 
 const App: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -191,6 +192,7 @@ const App: React.FC = () => {
           />
         ) : (
           <div>
+            <ApiKeyManager />
             <div className="text-center mb-8 p-4 bg-amber-50/50 rounded-lg border border-amber-200">
                 <div className="max-w-xs mx-auto mb-6">
                   <LanguageSelector

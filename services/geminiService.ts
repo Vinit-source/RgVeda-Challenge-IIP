@@ -1,11 +1,35 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { HymnChunk } from '../types';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
+const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper function to get the API key
+const getApiKey = (): string => {
+  // Check for localStorage first, as it's the user-provided override.
+  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+    const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (storedKey && storedKey.trim() !== '') {
+      return storedKey;
+    }
+  }
+
+  // Fallback to environment variable if localStorage key is not present.
+  if (process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  
+  // If neither is available, throw an error.
+  throw new Error("API_KEY not found in localStorage or environment variables. Please provide a key.");
+};
+
+
+// Function to dynamically create a GoogleGenAI client instance.
+// This is called before every API request to ensure the correct key is used.
+const getAiClient = () => {
+    const apiKey = getApiKey();
+    return new GoogleGenAI({ apiKey });
+};
+
 
 const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storyteller. Your voice is poetic, and your knowledge is rooted in the sacred hymns of the Rigveda.
 - Your task is to synthesize the provided hymns (CONTEXT) into a compelling, flowing narrative that answers the user's QUERY.
@@ -37,6 +61,7 @@ const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in
 `;
 
 export async function* generateStoryStream(query: string, context: HymnChunk[]): AsyncGenerator<{ text: string; }, void, unknown> {
+    const ai = getAiClient();
     const model = 'gemini-2.5-pro';
     
     const contextString = context.map(c => 
@@ -59,6 +84,7 @@ export async function* generateStoryStream(query: string, context: HymnChunk[]):
 }
 
 export async function generateP5jsAnimation(topicTitle: string, topicDescription: string): Promise<string> {
+    const ai = getAiClient();
     const model = 'gemini-2.5-pro';
     
     const prompt = P5JS_GENERATION_PROMPT
@@ -90,6 +116,7 @@ export async function generateP5jsAnimation(topicTitle: string, topicDescription
 
 
 export async function synthesizeSpeech(text: string, language: string): Promise<string> {
+    const ai = getAiClient();
     const model = 'gemini-2.5-flash-preview-tts';
     
     const response = await ai.models.generateContent({
@@ -113,6 +140,7 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
 }
 
 export async function* continueConversationStream(history: string, language: string): AsyncGenerator<string, void, unknown> {
+    const ai = getAiClient();
     const model = 'gemini-2.5-pro';
     
     const query = `You are the Vedic Sage. A user is asking you a follow-up question. Your conversation history is provided below.
@@ -151,6 +179,7 @@ export async function* continueConversationStream(history: string, language: str
 }
 
 export async function generateInitialSuggestions(story: string, language: string): Promise<string[]> {
+    const ai = getAiClient();
     const model = 'gemini-2.5-pro';
     const query = `Based on the following story from the Rigveda, generate 3-4 short, insightful follow-up questions a curious user might ask. Output only a JSON array of strings.
     
