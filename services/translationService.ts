@@ -1,11 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { CachedStory } from '../types';
+import { getApiKey } from '../utils/apiUtils';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 const TRANSLATION_SCHEMA = {
     type: Type.OBJECT,
@@ -40,7 +37,7 @@ export const translateCachedStory = async (
     storyToTranslate: Omit<CachedStory, 'language'>,
     targetLanguage: string
 ): Promise<{ story: string; suggestions: string[] }> => {
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
 
     const prompt = `You are an expert translator specializing in ancient religious and poetic texts. Your task is to translate the following content from English to ${targetLanguage}.
     

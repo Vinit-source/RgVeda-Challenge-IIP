@@ -12,7 +12,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
         {
             title: "Indra, King of Gods",
             description: "The powerful king of the Devas, a heroic god of thunder, storms, and war.",
-            keywords: ["indra", "storm", "thunder", "इंद्र"],
+            keywords: ["indra", "storm", "thunder", "इंद्र", "इन्द्र"],
             image: "https://picsum.photos/seed/indra/600/400"
         },
         {
@@ -24,7 +24,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
         {
             title: "The Ashvins, Divine Twins",
             description: "Discover the benevolent twin horsemen associated with dawn, healing, and rescue.",
-            keywords: ["ashvin", "ashvins", "twins", "healing", "अश्विनीकुमार"],
+            keywords: ["ashvin", "ashvins", "twins", "healing", "अश्विनीकुमार", "अश्विनौ"],
             image: "https://picsum.photos/seed/ashvins/600/400"
         },
         {
@@ -122,34 +122,55 @@ const ALL_TOPICS: Topic[] = Object.values(TOPICS_CATEGORIZED).flat();
 
 export const getTopicByTitle = (title: string): Topic | undefined => ALL_TOPICS.find(t => t.title === title);
 
-// A small, representative dataset simulating a vector database of the Rigveda.
+// This dataset is a parsed sample from the full Rigveda Samhita provided.
+// It simulates a much larger database of hymns for the AI to draw context from.
 const rigvedaDB: HymnChunk[] = [
-  // Mandala 1, Sukta 1
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "मैं अग्नि की स्तुति करता हूँ. वे यज्ञ के पुरोहित, दानादि गुणों से युक्त, यज्ञ में देवों को बुलाने वाले एवं यज्ञ के फल रूपी रत्नों को धारण करने वाले हैं.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "प्राचीन ऋषियों ने अग्नि की स्तुति की थी. वर्तमान ऋषि भी उनकी स्तुति करते हैं. वे अग्नि इस यज्ञ में देवों को बुलावें.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "अग्नि की कृपा से यजमान को धन मिलता है. उन्हीं की कृपा से वह धन दिन-दिन बढ़ता है. उस धन से यजमान यश प्राप्त करता है एवं अनेक वीर पुरुषों को अपने यहां रखता है.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "हे अग्नि! जिस यज्ञ की तुम चारों ओर से रक्षा करते हो, उसमें राक्षस आदि हिंसा नहीं कर सकते. वही यज्ञ देवताओं को तृप्ति देने स्वर्ग जाता है.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "हे अग्नि देव! तुम दूसरे देवों के साथ इस यज्ञ में आओ. तुम यज्ञ के होता, बुद्धिसंपन्न, सत्यशील एवं परमकीर्ति वाले हो.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "हे अग्नि! तुम यज्ञ में हवि देने वाले यजमान का जो कल्याण करते हो, वह वास्तव में तुम्हारी ही प्रसन्नता का साधन बनता है.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "हे अग्नि! हम सच्चे हृदय से तुम्हें रात-दिन नमस्कार करते हैं और प्रतिदिन तुम्हारे समीप आते हैं.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "हे अग्नि! तुम प्रकाशवान्, यज्ञ की रचना करने वाले और कर्मफल के द्योतक हो. तुम यज्ञशाला में बढ़ने वाले हो.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 1, text: "हे अग्नि! जिस प्रकार पुत्र पिता को सरलता से पा लेता है, उसी प्रकार हम भी तुम्हें सहज ही प्राप्त कर सकें. तुम हमारा कल्याण करने के लिए हमारे समीप निवास करो.", deity: "Agni", rishi: "Madhuchhandas Vaishvamitra" },
-  // Mandala 1, Sukta 2
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे दर्शनीय वायु! आओ, यह सोमरस तैयार है, इसे पिओ. हम सोमपान के लिए तुम्हें बुला रहे हैं. तुम हमारी यह पुकार सुनो.", deity: "Vayu, Indra", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे वायु! अग्nistोम आदि यज्ञों के ज्ञाता ऋत्विज् तथा यजमान आदि हम संस्कार द्वारा शुद्ध सोमरस के साथ तुम्हारी स्तुति करते हैं.", deity: "Vayu, Indra", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे वायु! तुम सोमरस की प्रशंसा करते हुए उसे पीने की जो बात कहते हो, वह बहुत से यजमानों के पास तक जाती है.", deity: "Vayu, Indra", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे इंद्र और वायु! तुम दोनों हमें देने के लिए अन्न लेकर आओ. सोमरस तैयार है और तुम दोनों की अभिलाषा कर रहा है.", deity: "Vayu, Indra", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे वायु और इंद्र! तुम दोनों यह जान लो कि सोमरस तैयार है. तुम दोनों अप्रयुक्त द्रव्य में रहने वाले हो. तुम दोनों शीघ्र ही यज्ञ के समीप आओ.", deity: "Vayu, Indra", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे वायु और इंद्र! सोमरस देने वाले यजमान ने जो सोमरस तैयार किया है, तुम दोनों उसके समीप आओ. हे दोनों देवो! तुम्हारे आने से यह यज्ञकर्म शीघ्र पूरा हो जाएगा.", deity: "Vayu, Indra", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "मैं पवित्र बल वाले मित्र तथा हिंसकों का नाश करने वाले वरुण का यज्ञ में आह्वान करता हूँ. ये दोनों धरती पर जल लाने का काम करते हैं.", deity: "Mitra, Varuna", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "हे मित्र और वरुण! तुम दोनों यज्ञ के वर्धक और यज्ञ का स्पर्श करने वाले हो. तुम लोग हमें यज्ञ का फल देने के लिए इस विशाल यज्ञ को व्याप्त किए हुए हो.", deity: "Mitra, Varuna", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 2, text: "मित्र और वरुण बुद्धिमान् लोगों का कल्याण करने वाले और अनेक लोगों के आश्रय हैं. ये हमारे बल और कर्म की रक्षा करें.", deity: "Mitra, Varuna", rishi: "Madhuchhandas Vaishvamitra" },
-  // Mandala 1, Sukta 3
-  { source: "Rigveda", mandala: 1, sukta: 3, text: "हे अश्विनीकुमारो! तुम्हारी भुजाएं विस्तीर्ण एवं हवि ग्रहण करने के लिए चंचल हैं. तुम शुभ कर्म के पालक हो. तुम दोनों यज्ञ का अन्न ग्रहण करो.", deity: "Ashvins", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 3, text: "हे अश्विनीकुमारो! तुम अनेक कर्म वाले, नेता और बुद्धिमान् हो. तुम दोनों आदरपूर्ण बुद्धि से हमारी स्तुति सुनो.", deity: "Ashvins", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 3, text: "हे शत्रु-विनाशक, सत्यभाषी और शत्रुओं को लाने वाले अश्विनीकुमारो! सोमरस तैयार करके बिछे हुए कुशों पर रख दिया गया है. तुम इस यज्ञ में आओ.", deity: "Ashvins", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 3, text: "हे विश्वेदेवगण! तुम मनुष्यों के रक्षक एवं पालन करने वाले हो. हव्यदाता यजमान ने सोमरस तैयार कर लिया है, तुम इसे ग्रहण करने के लिए आओ. तुम लोगों को यज्ञ का फल देने वाले हो.", deity: "Vishvedevas", rishi: "Madhuchhandas Vaishvamitra" },
-  { source: "Rigveda", mandala: 1, sukta: 3, text: "देवी सरस्वती पवित्र करने वाली तथा अन्न एवं धन देने वाली हैं. वे धन साथ लेकर हमारे इस यज्ञ में आवें.", deity: "Saraswati", rishi: "Madhuchhandas Vaishvamitra" }
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'अग्निमीळे पुरोहितं यज्ञस्य देवमृत्विजम् । होतारं रत्नधातमम् ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'अग्निः पूर्वेभिरृषिभिरीड्यो नूतनैरुत । स देवाँ एह वक्षति ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'अग्निना रयिमश्नवत्पोषमेव दिवेदिवे । यशसं वीरवत्तमम् ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'अग्ने यं यज्ञमध्वरं विश्वतः परिभूरसि । स इद्देवेषु गच्छति ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'अग्निर्होता कविक्रतुः सत्यश्चित्रश्रवस्तमः । देवो देवेभिरा गमत् ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'यदङ्ग दाशुषे त्वमग्ने भद्रं करिष्यसि । तवेत्तत्सत्यमङ्गिरः ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'उप त्वाग्ने दिवेदिवे दोषावस्तर्धिया वयम् । नमो भरन्त एमसि ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'राजन्तमध्वराणां गोपामृतस्य दीदिविम् । वर्धमानं स्वे दमे ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 1, text: 'स नः पितेव सूनवेऽग्ने सूपायनो भव । सचस्वा नः स्वस्तये ॥', deity: 'अग्निः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'वायवा याहि दर्शतमे सोमा अरंकृताः । तेषां पाहि श्रुधी हवम् ॥', deity: 'वायुः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'वाय उक्थेभिर्जरन्ते त्वामच्छा जरितारः । सुतसोमा अहर्विदः ॥', deity: 'वायुः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'वायो तव प्रपृञ्चती धेना जिगाति दाशुषे । उरूची सोमपीतये ॥', deity: 'वायुः', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'इन्द्रवायू इमे सुता उप प्रयोभिरा गतम् । इन्दवो वामुशन्ति हि ॥', deity: 'इन्द्रवायू', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'वायविन्द्रश्च चेतथः सुतानां वाजिनीवसू । तावा यातमुप द्रवत् ॥', deity: 'इन्द्रवायू', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'वायविन्द्रश्च सुन्वत आ यातमुप निष्कृतम् । मक्ष्वित्था धिया नरा ॥', deity: 'इन्द्रवायू', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'मित्रं हुवे पूतदक्षं वरुणं च रिशादसम् । धियं घृताचीं साधन्ता ॥', deity: 'मित्रावरुणौ', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'ऋतेन मित्रावरुणावृतावृधावृतस्पृशा । क्रतुं बृहन्तमाशाथे ॥', deity: 'मित्रावरुणौ', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 2, text: 'कवी नो मित्रावरुणा तुविजाता उरुक्षया । दक्षं दधाते अपसम् ॥', deity: 'मित्रावरुणौ', rishi: 'मधुच्छन्दाः वैश्वामित्रः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'अश्विना यज्वरीरिषो द्रवत्पाणी शुभस्पती । पुरुभुजा चनस्यतम् ॥', deity: 'अश्विनौ', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'अश्विना पुरुदंससा नरा शवीरया धिया । धिष्ण्या वनतं गिरः ॥', deity: 'अश्विनौ', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'दस्रा युवाकवः सुता नासत्या वृक्तबर्हिषः । आ यातं रुद्रवर्तनी ॥', deity: 'अश्विनौ', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'इन्द्रा याहि चित्रभानो सुता इमे त्वायवः । अण्वीभिस्तना पूतासः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'इन्द्रा याहि धियेषितो विप्रजूतः सुतावतः । उप ब्रह्माणि वाघतः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'इन्द्रा याहि तूतुजान उप ब्रह्माणि हरिवः । सुते दधिष्व नश्चनः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'ओमासश्चर्षणीधृतो विश्वे देवास आ गत । दाश्वांसो दाशुषः सुतम् ॥', deity: 'विश्वेदेवाः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'विश्वे देवासो अप्तुरः सुतमा गन्त तूर्णयः । उस्रा इव स्वसराणि ॥', deity: 'विश्वेदेवाः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'विश्वे देवासो अस्रिध एहिमायासो अद्रुहः । मेधं जुषन्त वह्नयः ॥', deity: 'विश्वेदेवाः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'पावका नः सरस्वती वाजेभिर्वाजिनीवती । यज्ञं वष्टु धियावसुः ॥', deity: 'सरस्वती', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'चोदयित्री सूनृतानां चेतन्ती सुमतीनाम् । यज्ञं दधे सरस्वती ॥', deity: 'सरस्वती', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 3, text: 'महो अर्णः सरस्वती प्र चेतयति केतुना । धियो विश्वा वि राजति ॥', deity: 'सरस्वती', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 4, text: 'सुरूपकृत्नुमूतये सुदुघामिव गोदुहे । जुहूमसि द्यविद्यवि ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 4, text: 'उप नः सवना गहि सोमस्य सोमपाः पिब । गोदा इद्रेवतो मदः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 4, text: 'अथा ते अन्तमानां विद्याम सुमतीनाम् । मा नो अति ख्य आ गहि ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 5, text: 'आ त्वेता नि षीदतेन्द्रमभि प्र गायत । सखायः स्तोमवाहसः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 5, text: 'पुरूतमं पुरूणामीशानं वार्याणाम् । इन्द्रं सोमे सचा सुते ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 5, text: 'स घा नो योग आ भुवत्स राये स पुरंध्याम् । गमद्वाजेभिरा स नः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 5, text: 'यस्य संस्थे न वृण्वते हरी समत्सु शत्रवः । तस्मा इन्द्राय गायत ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 6, text: 'युञ्जन्ति ब्रध्नमरुषं चरन्तं परि तस्थुषः । रोचन्ते रोचना दिवि ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 6, text: 'युञ्जन्त्यस्य काम्या हरी विपक्षसा रथे । शोणा धृष्णु नृवाहसा ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 6, text: 'केतुं कृण्वन्नकेतवे पेशो मर्या अपेशसे । समुषद्भिरजायथाः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 6, text: 'आदह स्वधामनु पुनर्गर्भत्वमेरिरे । दधाना नाम यज्ञियम् ॥', deity: 'मरुतः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 6, text: 'वीळु चिदारुजत्नुभिर्गुहा चिदिन्द्र वन्हिभिः । अविन्द उत्रिया अनु ॥', deity: 'इन्द्र-मरुतः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 6, text: 'देवयन्तो यथा मतिमच्छा विदद्वसुं गिरः । महामनूषत श्रुतम् ॥', deity: 'मरुतः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 7, text: 'इन्द्रमिद्गाथिनो बृहदिन्द्रमर्केभिरर्किणः । इन्द्रं वाणीरनूषत ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 7, text: 'इन्द्र इद्धर्योः सचा सम्मिश्ल आ वचोयुजा । इन्द्रो वज्री हिरण्ययः ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
+    { source: 'Rigveda', mandala: 1, sukta: 7, text: 'इन्द्रो दीर्घाय चक्षस आ सूर्यं रोहयद्दिवि । वि गोभिरद्रिमैरयत् ॥', deity: 'इन्द्रः', rishi: 'मधुच्छन्दाः' },
 ];
 
 /**
@@ -162,7 +183,7 @@ export const retrieveHymns = (keywords: string[]): HymnChunk[] => {
   const results = new Set<HymnChunk>();
 
   rigvedaDB.forEach(chunk => {
-    const chunkText = `${chunk.deity.toLowerCase()} ${chunk.text.toLowerCase()}`;
+    const chunkText = `${chunk.deity.toLowerCase()} ${chunk.text.toLowerCase()} ${chunk.rishi.toLowerCase()}`;
     if (lowerKeywords.some(kw => chunkText.includes(kw))) {
       results.add(chunk);
     }

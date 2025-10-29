@@ -1,11 +1,15 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { HymnChunk } from '../types';
+import { getApiKey } from '../utils/apiUtils';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Function to dynamically create a GoogleGenAI client instance.
+// This is called before every API request to ensure the correct key is used.
+const getAiClient = () => {
+    const apiKey = getApiKey();
+    return new GoogleGenAI({ apiKey });
+};
+
 
 const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storyteller. Your voice is poetic, and your knowledge is rooted in the sacred hymns of the Rigveda.
 - Your task is to synthesize the provided hymns (CONTEXT) into a compelling, flowing narrative that answers the user's QUERY.
@@ -37,7 +41,8 @@ const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in
 `;
 
 export async function* generateStoryStream(query: string, context: HymnChunk[]): AsyncGenerator<{ text: string; }, void, unknown> {
-    const model = 'gemini-2.5-pro';
+    const ai = getAiClient();
+    const model = 'gemini-2.5-flash';
     
     const contextString = context.map(c => 
         `Source: RV ${c.mandala}.${c.sukta}\nDeity: ${c.deity}\nRishi: ${c.rishi}\nText: "${c.text}"`
@@ -59,7 +64,8 @@ export async function* generateStoryStream(query: string, context: HymnChunk[]):
 }
 
 export async function generateP5jsAnimation(topicTitle: string, topicDescription: string): Promise<string> {
-    const model = 'gemini-2.5-pro';
+    const ai = getAiClient();
+    const model = 'gemini-2.5-flash';
     
     const prompt = P5JS_GENERATION_PROMPT
         .replace('{TOPIC_TITLE}', topicTitle)
@@ -90,6 +96,7 @@ export async function generateP5jsAnimation(topicTitle: string, topicDescription
 
 
 export async function synthesizeSpeech(text: string, language: string): Promise<string> {
+    const ai = getAiClient();
     const model = 'gemini-2.5-flash-preview-tts';
     
     const response = await ai.models.generateContent({
@@ -113,7 +120,8 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
 }
 
 export async function* continueConversationStream(history: string, language: string): AsyncGenerator<string, void, unknown> {
-    const model = 'gemini-2.5-pro';
+    const ai = getAiClient();
+    const model = 'gemini-2.5-flash';
     
     const query = `You are the Vedic Sage. A user is asking you a follow-up question. Your conversation history is provided below.
     First, provide a direct and concise answer to their last question. Structure your answer with separate paragraphs for distinct ideas, especially when drawing from different hymns.
@@ -151,7 +159,8 @@ export async function* continueConversationStream(history: string, language: str
 }
 
 export async function generateInitialSuggestions(story: string, language: string): Promise<string[]> {
-    const model = 'gemini-2.5-pro';
+    const ai = getAiClient();
+    const model = 'gemini-2.5-flash';
     const query = `Based on the following story from the Rigveda, generate 3-4 short, insightful follow-up questions a curious user might ask. Output only a JSON array of strings.
     
     STORY:
