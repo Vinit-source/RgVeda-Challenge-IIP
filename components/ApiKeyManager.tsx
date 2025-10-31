@@ -72,9 +72,8 @@ export const ApiKeyManager: React.FC = () => {
     <div className="text-center mb-6 p-4 bg-amber-50/50 rounded-lg border border-amber-200">
       <h3 className="text-lg font-display text-amber-900 mb-2">Provide Your Gemini API Key</h3>
       <p className="text-sm text-stone-600 mb-4">
-        Your API key is stored locally in your browser and is not shared. You have to provide a valid Gemini API key (Free-tier also works) to use the application.
-        <br /><em>Note: For the IIP hackathon, a demo key is used. In order to use it, click 'Use Demo Key' button.</em>
-      </p>
+        Your API key is stored locally in your browser and is not shared. You have to provide a valid Gemini API key (Free-tier also works) to use the application.</p>
+        <p><em>Note: For the IIP hackathon, a demo key is used. In order to use it, click 'Use Demo Key' button.</em></p>
       <div className="flex items-center gap-2 max-w-lg mx-auto">
         <input
           type="password"
