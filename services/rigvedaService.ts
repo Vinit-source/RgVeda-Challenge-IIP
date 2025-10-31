@@ -52,7 +52,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Rudra, The Fierce God",
             description: "A fierce deity associated with storms, wind, and the hunt, possessing a fearsome and healing nature.",
             keywords: ["rudra", "storm", "healer", "रुद्र"],
-            image: "/images/Rudra.jpg"
+            image: "/images/Rudra.JPG"
         },
         {
             title: "Ashvins, Divine Twin Horsemen",
@@ -64,7 +64,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Soma, Plant of Immortality",
             description: "The deified plant whose juice is a drink of the gods, granting inspiration and power.",
             keywords: ["soma", "plant", "immortality", "सोम"],
-            image: "/images/Soma.jpg"
+            image: "/images/SOma.jpg"
         },
         {
             title: "Usha, Goddess of Dawn",
