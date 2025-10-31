@@ -4,7 +4,8 @@ import { VedicAnimation } from './VedicAnimation';
 import { ChatMessage } from './ChatMessage';
 import { Suggestions } from './Suggestions';
 import { ChatInput } from './ChatInput';
-import { synthesizeSpeech, continueConversationStream } from '../services/geminiService';
+import { synthesizeSpeech, continueConversationStream, extractKeywords } from '../services/geminiService';
+import { retrieveHymns } from '../services/rigvedaService';
 import { audioService } from '../services/audioService';
 import { decode, decodeAudioData } from '../utils/audioUtils';
 import TestingModal from './TestingModal';
@@ -262,7 +263,17 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         
         let fullResponseText = '';
         try {
-            const stream = continueConversationStream(history, selectedLanguage.name);
+            // Extract keywords from user's message and retrieve relevant hymns
+            console.log('Extracting keywords from user message:', userInput);
+            const keywords = await extractKeywords(userInput, history);
+            console.log('Extracted keywords:', keywords);
+            
+            // Retrieve relevant hymns from Supabase
+            const hymnContext = keywords.length > 0 ? await retrieveHymns(keywords) : [];
+            console.log('Retrieved hymns:', hymnContext.length);
+            
+            // Generate response with hymn context
+            const stream = continueConversationStream(history, selectedLanguage.name, hymnContext);
             for await (const chunk of stream) {
                 fullResponseText += chunk;
             }

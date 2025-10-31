@@ -119,14 +119,26 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
     return audioData;
 }
 
-export async function* continueConversationStream(history: string, language: string): AsyncGenerator<string, void, unknown> {
+export async function* continueConversationStream(history: string, language: string, hymnContext?: HymnChunk[]): AsyncGenerator<string, void, unknown> {
     const ai = getAiClient();
     const model = 'gemini-2.5-flash';
     
-    const query = `You are the Vedic Sage. A user is asking you a follow-up question. Your conversation history is provided below.
+    // Build context string from hymns if provided
+    const contextString = hymnContext && hymnContext.length > 0
+        ? hymnContext.map(c => 
+            `Source: RV ${c.mandala}.${c.sukta}\nDeity: ${c.deity}\nRishi: ${c.rishi}\nText: "${c.text}"`
+          ).join('\n---\n')
+        : '';
+    
+    const contextSection = contextString 
+        ? `RELEVANT HYMNS FROM RIGVEDA:\n${contextString}\n\n`
+        : '';
+    
+    const query = `You are the Vedic Sage. A user is asking you a follow-up question. ${contextString ? 'Relevant hymns from the Rigveda are provided to help answer their question.' : ''} Your conversation history is provided below.
     First, provide a direct and concise answer to their last question. Structure your answer with separate paragraphs for distinct ideas, especially when drawing from different hymns.
+    ${contextString ? 'Use the provided hymns to ground your answer in the sacred texts.' : 'Ground your answer in the hymns of the Rigveda based on your knowledge.'}
     After your answer is complete, on a new line, write the special delimiter "[SUGGESTIONS]".
-    After the delimiter, provide a JSON array of 3-4 short, insightful follow-up questions the user could ask.
+    After the delimiter, provide a JSON array of 3-4 short, insightful follow-up questions the user could ask${contextString ? ', rooted in the themes of the provided hymns' : ''}.
     
     Example output format:
     This is the sage's wise reply, flowing like a river of knowledge (RV 1.2.3).
@@ -137,9 +149,9 @@ export async function* continueConversationStream(history: string, language: str
 
     Your entire response, including the reply and suggestions, must be in ${language}.
     Your answer must be concise (less than 400 tokens).
-    Ground your answer in the hymns of the Rigveda. **CRITICAL**: Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)). Each paragraph should ideally end with its primary citation.
+    **CRITICAL**: Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)). Each paragraph should ideally end with its primary citation.
     
-    CONVERSATION HISTORY:
+    ${contextSection}CONVERSATION HISTORY:
     ---
     ${history}
     ---
@@ -193,5 +205,52 @@ export async function generateInitialSuggestions(story: string, language: string
             "What happens next?",
             "What does this symbolize?"
         ]; // Fallback suggestions
+    }
+}
+
+/**
+ * Extract relevant keywords from user's message for hymn retrieval
+ * Uses AI to identify key concepts and entities
+ */
+export async function extractKeywords(userMessage: string, context?: string): Promise<string[]> {
+    const ai = getAiClient();
+    const model = 'gemini-2.5-flash';
+    
+    const contextInfo = context ? `\n\nCONTEXT:\n${context}` : '';
+    
+    const query = `Extract 3-5 key concepts, deities, themes, or entities from the user's question that would be relevant for searching Rigveda hymns. Output only a JSON array of keyword strings.
+    
+    USER QUESTION:
+    ${userMessage}${contextInfo}
+    
+    Examples:
+    - User: "Tell me about fire" -> ["agni", "fire", "sacrifice"]
+    - User: "What is cosmic order?" -> ["rta", "cosmic order", "dharma", "varuna"]
+    - User: "Who are the storm gods?" -> ["maruts", "storm", "indra", "wind"]
+    `;
+
+    const response = await ai.models.generateContent({
+        model,
+        contents: query,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+            }
+        }
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+    } catch (e) {
+        console.error("Failed to parse keywords:", e, response.text);
+        // Fallback: extract simple words from the message
+        const words = userMessage.toLowerCase()
+            .replace(/[^\w\s]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 3);
+        return words.slice(0, 5);
     }
 }
