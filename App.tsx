@@ -11,6 +11,8 @@ import { LANGUAGES } from './services/languageService';
 import { prefetchedStories } from './services/prefetched-stories';
 import type { Topic, HymnChunk, Language } from './types';
 import { ApiKeyManager } from './components/ApiKeyManager';
+import TestingModal from './components/TestingModal';
+import { getApiKey } from './utils/apiUtils';
 
 const App: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
@@ -97,7 +99,7 @@ const App: React.FC = () => {
         
         // 4. Generate story and suggestions if not found in any cache
         setLoadingMessage("The Sage is weaving the tale...");
-        const context: HymnChunk[] = retrieveHymns(topic.keywords);
+        const context: HymnChunk[] = await retrieveHymns(topic.keywords);
         
         const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
         const storyStream = generateStoryStream(query, context);
@@ -219,6 +221,26 @@ const App: React.FC = () => {
           <span className="block sm:inline ml-2">{error}</span>
         </div>
       )}
+      
+      <TestingModal
+        selectedTopic={selectedTopic}
+        selectedLanguage={selectedLanguage}
+        story={story}
+        p5jsCode={p5jsCode}
+        citations={citations}
+        initialSuggestions={initialSuggestions}
+        isLoading={isLoading}
+        loadingMessage={loadingMessage}
+        error={error}
+        messages={[]}
+        suggestions={[]}
+        isReplying={false}
+        ttsState={{ id: null, status: 'IDLE' }}
+        ttsError={null}
+        audioCacheSize={0}
+        playbackRate={1.25}
+        apiKey={getApiKey()}
+      />
     </div>
   );
 };

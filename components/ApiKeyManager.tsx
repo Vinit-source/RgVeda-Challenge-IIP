@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { text } from 'stream/consumers';
 
-const API_KEY_STORAGE_KEY = 'geminiApiKey';
+const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
 export const ApiKeyManager: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
@@ -73,7 +73,7 @@ export const ApiKeyManager: React.FC = () => {
       <h3 className="text-lg font-display text-amber-900 mb-2">Provide Your Gemini API Key</h3>
       <p className="text-sm text-stone-600 mb-4">
         Your API key is stored locally in your browser and is not shared. You have to provide a valid Gemini API key (Free-tier also works) to use the application.
-        <div><em>Note: For the IIP hackathon, a demo key is used. In order to use it, click 'Use Demo Key' button.</em></div>
+        <br /><em>Note: For the IIP hackathon, a demo key is used. In order to use it, click 'Use Demo Key' button.</em>
       </p>
       <div className="flex items-center gap-2 max-w-lg mx-auto">
         <input
