@@ -10,7 +10,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Surya, The Sun God",
             description: "The all-seeing eye of the cosmos, riding his chariot across the sky.",
             keywords: ["surya", "sun", "सूर्य"],
-            image: "assets/images/Surya.jpg"
+            image: "/images/Surya.jpg"
         },
         {
             title: "Agni, The Fire God",
@@ -22,7 +22,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Indra, King of Gods",
             description: "The powerful king of the Devas, a heroic god of thunder, storms, and war.",
             keywords: ["indra", "storm", "thunder", "इंद्र", "इन्द्र"],
-            image: "assets/images/Indra.jpg"
+            image: "/images/Indra.jpg"
         },
         {
             title: "Vayu, Lord of the Wind",
@@ -34,43 +34,43 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Varuna, Cosmic Law Keeper",
             description: "The sovereign god of cosmic order (Rta), the sky, and the celestial ocean.",
             keywords: ["varuna", "rta", "cosmic order", "वरुण"],
-            image: "assets/images/Varuna.jpg"
+            image: "/images/Varuna.jpg"
         },
         {
             title: "The Maruts, Storm Deities",
             description: "Tales of the fierce storm gods who ride with Indra, wielding lightning and thunder.",
             keywords: ["maruts", "storm", "rudra", "wind", "मरुत"],
-            image: "assets/images/Maruts.jpg"
+            image: "/images/Maruts.jpg"
         },
         {
             title: "Sarasvati, Goddess of Wisdom",
             description: "Invoke the goddess of knowledge, music, art, and the sacred river.",
             keywords: ["saraswati", "river", "knowledge", "goddess", "सरस्वती"],
-            image: "assets/images/Saraswati.jpg"
+            image: "/images/Saraswati.jpg"
         },
         {
             title: "Rudra, The Fierce God",
             description: "A fierce deity associated with storms, wind, and the hunt, possessing a fearsome and healing nature.",
             keywords: ["rudra", "storm", "healer", "रुद्र"],
-            image: "assets/images/Rudra.jpg"
+            image: "/images/Rudra.jpg"
         },
         {
             title: "Ashvins, Divine Twin Horsemen",
             description: "Discover the benevolent twin horsemen associated with dawn, healing, and rescue.",
             keywords: ["ashvin", "ashvins", "twins", "healing", "अश्विनीकुमार", "अश्विनौ"],
-            image: "assets/images/Ashwins.jpg"
+            image: "/images/Ashwins.jpg"
         },
         {
             title: "Soma, Plant of Immortality",
             description: "The deified plant whose juice is a drink of the gods, granting inspiration and power.",
             keywords: ["soma", "plant", "immortality", "सोम"],
-            image: "assets/images/Soma.jpg"
+            image: "/images/Soma.jpg"
         },
         {
             title: "Usha, Goddess of Dawn",
             description: "Behold the beauty of the goddess of dawn who brings light and life to the world.",
             keywords: ["usha", "dawn", "light", "उषा"],
-            image: "assets/images/Usha.webp"
+            image: "/images/Usha.webp"
         },
         
         
