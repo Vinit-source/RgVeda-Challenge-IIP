@@ -214,6 +214,7 @@ const App: React.FC = () => {
 
       <footer className="w-full max-w-5xl text-center mt-8 p-4 text-stone-500 text-sm">
         <p>Crafted with <SparklesIcon className="inline-block h-4 w-4 text-amber-500" /> Generative AI. Narratives are interpretations grounded in the Rigveda.</p>
+        <p className="mt-2">Images are taken from various sources. All sources should be considered acknowledged.</p>
       </footer>
        {error && (
         <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg" role="alert">
