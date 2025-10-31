@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { Playbook } from './components/Playbook';
 import { StoryDisplay } from './components/StoryDisplay';
@@ -97,7 +98,8 @@ const App: React.FC = () => {
         
         // 4. Generate story and suggestions if not found in any cache
         setLoadingMessage("The Sage is weaving the tale...");
-        const context: HymnChunk[] = retrieveHymns(topic.keywords);
+        // FIX: Added await to resolve the promise from retrieveHymns.
+        const context: HymnChunk[] = await retrieveHymns(topic.keywords);
         
         const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
         const storyStream = generateStoryStream(query, context);
