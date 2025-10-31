@@ -14,7 +14,8 @@ export const getApiKey = (): string => {
 	if (process.env.API_KEY) {
 		return process.env.API_KEY;
 	}
-	
-	// If neither is available, throw an error.
-	throw new Error("API_KEY not found in localStorage or environment variables. Please provide a key.");
+
+	// If neither is available, log a warning.
+	console.warn('API key is not set in localStorage or environment variables.');
+	return '';
 };
