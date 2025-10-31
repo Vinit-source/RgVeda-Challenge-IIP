@@ -40,13 +40,22 @@ const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in
 **DESCRIPTION:** {TOPIC_DESCRIPTION}
 `;
 
+/**
+ * Helper function to format hymn chunks into a consistent string format
+ * @param hymns - Array of hymn chunks to format
+ * @returns Formatted string of hymn information
+ */
+function formatHymnContext(hymns: HymnChunk[]): string {
+    return hymns.map(c => 
+        `Source: RV ${c.mandala}.${c.sukta}\nDeity: ${c.deity}\nRishi: ${c.rishi}\nText: "${c.text}"`
+    ).join('\n---\n');
+}
+
 export async function* generateStoryStream(query: string, context: HymnChunk[]): AsyncGenerator<{ text: string; }, void, unknown> {
     const ai = getAiClient();
     const model = 'gemini-2.5-flash';
     
-    const contextString = context.map(c => 
-        `Source: RV ${c.mandala}.${c.sukta}\nDeity: ${c.deity}\nRishi: ${c.rishi}\nText: "${c.text}"`
-    ).join('\n---\n');
+    const contextString = formatHymnContext(context);
 
     const fullPrompt = `CONTEXT:\n${contextString}\n\nQUERY:\n${query}`;
 
@@ -125,9 +134,7 @@ export async function* continueConversationStream(history: string, language: str
     
     // Build context string from hymns if provided
     const contextString = hymnContext && hymnContext.length > 0
-        ? hymnContext.map(c => 
-            `Source: RV ${c.mandala}.${c.sukta}\nDeity: ${c.deity}\nRishi: ${c.rishi}\nText: "${c.text}"`
-          ).join('\n---\n')
+        ? formatHymnContext(hymnContext)
         : '';
     
     const hasHymnContext = !!contextString;
@@ -225,6 +232,7 @@ export async function generateInitialSuggestions(story: string, language: string
 // Fallback keyword extraction constants
 const MIN_KEYWORD_LENGTH = 3;
 const MAX_FALLBACK_KEYWORDS = 5;
+const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use', 'what', 'when', 'with', 'your', 'about', 'from', 'have', 'this', 'that', 'they', 'been', 'call', 'come', 'each', 'find', 'long', 'made', 'many', 'more', 'most', 'much', 'must', 'over', 'said', 'such', 'than', 'them', 'then', 'there', 'these', 'thing', 'very', 'were', 'will', 'with', 'would', 'like', 'just', 'know', 'take', 'into', 'good', 'some', 'could', 'make', 'than', 'time', 'first', 'other', 'where', 'after', 'their', 'think', 'also', 'back', 'only', 'tell', 'does']);
 
 /**
  * Extract relevant keywords from user's message for hymn retrieval.
@@ -273,11 +281,11 @@ export async function extractKeywords(userMessage: string, context?: string): Pr
         return JSON.parse(jsonText);
     } catch (e) {
         console.error("Failed to parse keywords:", e, response.text);
-        // Fallback: extract simple words from the message
+        // Fallback: extract simple words from the message, filtering stop words
         const words = userMessage.toLowerCase()
             .replace(/[^\w\s]/g, ' ')
             .split(/\s+/)
-            .filter(w => w.length > MIN_KEYWORD_LENGTH);
+            .filter(w => w.length > MIN_KEYWORD_LENGTH && !STOP_WORDS.has(w));
         return words.slice(0, MAX_FALLBACK_KEYWORDS);
     }
 }

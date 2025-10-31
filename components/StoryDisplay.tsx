@@ -269,7 +269,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             console.log('Extracted keywords:', keywords);
             
             // Retrieve relevant hymns from Supabase
-            const hymnContext = keywords.length > 0 ? await retrieveHymns(keywords) : [];
+            const hymnContext = await retrieveHymns(keywords);
             console.log('Retrieved hymns:', hymnContext.length);
             
             // Generate response with hymn context
