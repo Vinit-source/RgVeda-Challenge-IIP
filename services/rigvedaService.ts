@@ -16,7 +16,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Agni, The Fire God",
             description: "Explore hymns to the god of fire, the priest of the gods and messenger for the sacrifice.",
             keywords: ["agni", "fire", "priest", "messenger", "अग्नि"],
-            image: "https://picsum.photos/seed/agni/600/400"
+            image: "/images/Agni.jpg"
         },
         {
             title: "Indra, King of Gods",
@@ -28,7 +28,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Vayu, Lord of the Wind",
             description: "The swift god of the wind, the first to drink the Soma offering.",
             keywords: ["vayu", "wind", "वायु"],
-            image: "https://picsum.photos/seed/vayu/600/400"
+            image: "/images/Vayu.jpg"
         },
         {
             title: "Varuna, Cosmic Law Keeper",
@@ -88,25 +88,25 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Vishvamitra",
             description: "A great king who became a revered Rishi, credited with composing most of Mandala 3.",
             keywords: ["vishvamitra", "विश्वामित्र"],
-            image: "https://picsum.photos/seed/vishvamitra-rishi/600/400"
+            image: "/images/Vishvamitra.jpg"
         },
         {
             title: "Vasistha",
             description: "A revered Brahmarshi known for his wisdom and as the author of several hymns.",
             keywords: ["vasistha", "वसिष्ठ"],
-            image: "https://picsum.photos/seed/vasistha/600/400"
+            image: "/images/Vasistha.jpg"
         },
         {
             title: "Gautama",
             description: "A renowned Rishi, traditionally considered the author of one of the mandalas in RgVeda.",
             keywords: ["gautama", "गौतम"],
-            image: "https://picsum.photos/seed/gautama/600/400"
+            image: "/images/Gautama.jpg"
         },
         {
             title: "Bhrigu",
             description: "A renowned Rishi, traditionally considered the author of one of the mandalas in RgVeda",
             keywords: ["bhrigu", "भृगु"],
-            image: "https://picsum.photos/seed/bhrigu/600/400"
+            image: "/images/Bhrigu.jpg"
         }
     ],
     "Locations, Objects & Concepts": [
@@ -114,25 +114,25 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
             title: "Sapta Sindhu, Land of Seven Rivers",
             description: "The sacred land defined by seven major rivers, the heartland of Vedic civilization.",
             keywords: ["sapta sindhu", "seven rivers", "sindhu", "सप्त सिन्धु"],
-            image: "https://picsum.photos/seed/saptasindhu/600/400"
+            image: "/images/SaptaSindhu.jpg"
         },
         {
-            title: "Rta, Cosmic Order",
+            title: "Rita, Cosmic Order",
             description: "The principle of natural order which regulates and coordinates the operation of the universe.",
             keywords: ["rta", "rita", "cosmic order", "ऋत"],
-            image: "https://picsum.photos/seed/rta/600/400"
+            image: "/images/rta.jpg"
         },
         {
             title: "Yajna, Sacrifice",
             description: "The ritual of offering, a central practice for communicating with and nourishing the gods.",
             keywords: ["yajna", "sacrifice", "ritual", "यज्ञ"],
-            image: "https://picsum.photos/seed/yajna/600/400"
+            image: "/images/yajna.jpg"
         },
         {
             title: "Soma Pressing Ritual",
             description: "The ritual preparation of the sacred Soma juice, a key element of Vedic sacrifice.",
             keywords: ["soma", "pressing", "ritual", "सोम"],
-            image: "https://picsum.photos/seed/somapressing/600/400"
+            image: "/images/SomaPressing.jpg"
         },
     ]
 };
