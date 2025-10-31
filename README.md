@@ -10,7 +10,7 @@ An immersive application that brings the ancient hymns of the Rigveda to life th
 
 **Live Demo:** [https://rg-veda-challenge-iip.vercel.app/](https://rg-veda-challenge-iip.vercel.app/)
 
-**AI Studio (No API Key Required):** [https://ai.studio/apps/drive/1-AgqrFbotewUaOnWsrM3T8JB91OFbUZ9](https://ai.studio/apps/drive/1-AgqrFbotewUaOnWsrM3T8JB91OFbUZ9)  
+**AI Studio (No API Key Required):** [https://ai.studio/apps/drive/1-AgqrFbotewUaOnWsrM3T8JB91OFbUZ9](https://ai.studio/apps/drive/1-AgqrFbotewUaOnWsrM3T8JB91OFbUZ9)
 Access the full experience without needing a paid Gemini API key to demo the TTS feature properly.
 
 ## Technical Features
@@ -26,7 +26,7 @@ Access the full experience without needing a paid Gemini API key to demo the TTS
 ## Setup Instructions
 
 ### Prerequisites
-- Node.js (v14 or higher)
+- Node.js (v18 or higher)
 - A Gemini API key (optional for local development, required for TTS features)
 
 ### Local Development
