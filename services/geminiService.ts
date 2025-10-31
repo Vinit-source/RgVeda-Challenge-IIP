@@ -130,15 +130,29 @@ export async function* continueConversationStream(history: string, language: str
           ).join('\n---\n')
         : '';
     
-    const contextSection = contextString 
+    const hasHymnContext = !!contextString;
+    const contextSection = hasHymnContext 
         ? `RELEVANT HYMNS FROM RIGVEDA:\n${contextString}\n\n`
         : '';
     
-    const query = `You are the Vedic Sage. A user is asking you a follow-up question. ${contextString ? 'Relevant hymns from the Rigveda are provided to help answer their question.' : ''} Your conversation history is provided below.
+    // Build conditional prompt text for better readability
+    const introText = hasHymnContext
+        ? 'Relevant hymns from the Rigveda are provided to help answer their question.'
+        : '';
+    
+    const groundingInstruction = hasHymnContext
+        ? 'Use the provided hymns to ground your answer in the sacred texts.'
+        : 'Ground your answer in the hymns of the Rigveda based on your knowledge.';
+    
+    const suggestionInstruction = hasHymnContext
+        ? ', rooted in the themes of the provided hymns'
+        : '';
+    
+    const query = `You are the Vedic Sage. A user is asking you a follow-up question. ${introText} Your conversation history is provided below.
     First, provide a direct and concise answer to their last question. Structure your answer with separate paragraphs for distinct ideas, especially when drawing from different hymns.
-    ${contextString ? 'Use the provided hymns to ground your answer in the sacred texts.' : 'Ground your answer in the hymns of the Rigveda based on your knowledge.'}
+    ${groundingInstruction}
     After your answer is complete, on a new line, write the special delimiter "[SUGGESTIONS]".
-    After the delimiter, provide a JSON array of 3-4 short, insightful follow-up questions the user could ask${contextString ? ', rooted in the themes of the provided hymns' : ''}.
+    After the delimiter, provide a JSON array of 3-4 short, insightful follow-up questions the user could ask${suggestionInstruction}.
     
     Example output format:
     This is the sage's wise reply, flowing like a river of knowledge (RV 1.2.3).
@@ -208,9 +222,22 @@ export async function generateInitialSuggestions(story: string, language: string
     }
 }
 
+// Fallback keyword extraction constants
+const MIN_KEYWORD_LENGTH = 3;
+const MAX_FALLBACK_KEYWORDS = 5;
+
 /**
- * Extract relevant keywords from user's message for hymn retrieval
- * Uses AI to identify key concepts and entities
+ * Extract relevant keywords from user's message for hymn retrieval.
+ * Uses AI to identify key concepts, deities, themes, or entities that would be
+ * relevant for searching Rigveda hymns in the vector database.
+ * 
+ * @param userMessage - The user's question or message to extract keywords from
+ * @param context - Optional conversation history context to help with keyword extraction
+ * @returns Promise<string[]> - Array of 3-5 relevant keywords for hymn search
+ * 
+ * @example
+ * const keywords = await extractKeywords("Tell me about fire");
+ * // Returns: ["agni", "fire", "sacrifice"]
  */
 export async function extractKeywords(userMessage: string, context?: string): Promise<string[]> {
     const ai = getAiClient();
@@ -250,7 +277,7 @@ export async function extractKeywords(userMessage: string, context?: string): Pr
         const words = userMessage.toLowerCase()
             .replace(/[^\w\s]/g, ' ')
             .split(/\s+/)
-            .filter(w => w.length > 3);
-        return words.slice(0, 5);
+            .filter(w => w.length > MIN_KEYWORD_LENGTH);
+        return words.slice(0, MAX_FALLBACK_KEYWORDS);
     }
 }
