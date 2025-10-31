@@ -136,7 +136,8 @@ export const retrieveHymns = async (keywords: string[]): Promise<HymnChunk[]> =>
   try {
     // Combine keywords into a search query
     const searchQuery = keywords.join(' ');
-    
+    console.log('Retrieving hymns for query:', searchQuery);
+
     // Initialize Gemini AI client
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });

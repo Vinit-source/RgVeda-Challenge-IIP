@@ -7,6 +7,8 @@ import { ChatInput } from './ChatInput';
 import { synthesizeSpeech, continueConversationStream } from '../services/geminiService';
 import { audioService } from '../services/audioService';
 import { decode, decodeAudioData } from '../utils/audioUtils';
+import TestingModal from './TestingModal';
+import { getApiKey } from '../utils/apiUtils';
 
 interface StoryDisplayProps {
   topic: Topic;
@@ -389,6 +391,26 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             )}
         </div>
       </div>
+      
+      <TestingModal
+        selectedTopic={topic}
+        selectedLanguage={selectedLanguage}
+        story={story}
+        p5jsCode={p5jsCode}
+        citations={citations}
+        initialSuggestions={initialSuggestions}
+        isLoading={isLoading}
+        loadingMessage={loadingMessage}
+        error={null}
+        messages={messages}
+        suggestions={suggestions}
+        isReplying={isReplying}
+        ttsState={ttsState}
+        ttsError={ttsError}
+        audioCacheSize={audioCache.size}
+        playbackRate={playbackRate}
+        apiKey={getApiKey()}
+      />
     </div>
   );
 };
