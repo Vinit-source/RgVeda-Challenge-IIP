@@ -1,6 +1,6 @@
 {
-  "name": "Vedic Sage: An Interactive Rigveda Storyteller",
-  "description": "An immersive application that brings the ancient hymns of the Rigveda to life through AI-powered storytelling, visual animations, and synthesized audio, all guided by the persona of a wise Vedic Sage.",
+  "name": "Vedic Sage: An Interactive Ṛgveda Storyteller",
+  "description": "An immersive application that brings the ancient hymns of the Ṛgveda to life through AI-powered storytelling, visual animations, and synthesized audio, all guided by the persona of a wise Vedic Sage.",
   "requestFramePermissions": [
     "microphone"
   ]

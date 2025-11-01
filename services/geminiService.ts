@@ -31,7 +31,7 @@ const getAiClient = () => {
 };
 
 
-const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storyteller. Your voice is poetic, and your knowledge is rooted in the sacred hymns of the Rigveda.
+const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storyteller. Your voice is poetic, and your knowledge is rooted in the sacred hymns of the Ṛgveda.
 - Your task is to synthesize the provided hymns (CONTEXT) into a compelling, flowing narrative that answers the user's QUERY.
 - When you draw from a new hymn or a different source, start a new paragraph to clearly separate the ideas drawn from different verses.
 - NEVER invent information or answer outside of the provided CONTEXT. Ground every part of your story in the hymns.
@@ -39,7 +39,7 @@ const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storytelle
 - **CRITICAL**: Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)) naturally within your narrative. Each paragraph should ideally end with its primary citation.
 - Begin your response directly with the story. Do not use conversational introductions like "Of course" or "Certainly, here is a story".`;
 
-const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in p5.js. Your task is to generate a self-contained, abstract, and visually captivating p5.js animation script based on a provided topic from the Rigveda.
+const P5JS_GENERATION_PROMPT = `You are an expert creative coder specializing in p5.js. Your task is to generate a self-contained, abstract, and visually captivating p5.js animation script based on a provided topic from the Ṛgveda.
 
 **INSTRUCTIONS:**
 1.  **Analyze the Topic:** Read the provided topic title and description to understand its key themes, moods, and visual elements (e.g., fire for Agni, storms for Indra, light for Surya, flowing rivers for Saraswati).
@@ -157,7 +157,7 @@ export async function* continueConversationStream(history: string, language: str
 
     Your entire response, including the reply and suggestions, must be in ${language}.
     Your answer must be concise (less than 400 tokens).
-    Ground your answer in the hymns of the Rigveda. **CRITICAL**: Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)). Each paragraph should ideally end with its primary citation.
+    Ground your answer in the hymns of the Ṛgveda. **CRITICAL**: Cite the source of your information by referencing the Mandala and Sukta in parentheses (e.g., (RV 1.1)). Each paragraph should ideally end with its primary citation.
     
     CONVERSATION HISTORY:
     ---
@@ -181,7 +181,7 @@ export async function* continueConversationStream(history: string, language: str
 export async function generateInitialSuggestions(story: string, language: string): Promise<string[]> {
     const ai = getAiClient();
     const model = 'gemini-2.5-pro';
-    const query = `Based on the following story from the Rigveda, generate 3-4 short, insightful follow-up questions a curious user might ask. Output only a JSON array of strings.
+    const query = `Based on the following story from the Ṛgveda, generate 3-4 short, insightful follow-up questions a curious user might ask. Output only a JSON array of strings.
     
     STORY:
     ---

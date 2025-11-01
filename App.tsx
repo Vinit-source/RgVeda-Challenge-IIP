@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { Playbook } from './components/Playbook';
 import { StoryDisplay } from './components/StoryDisplay';
@@ -10,7 +9,7 @@ import { cacheService } from './services/cacheService';
 import { translateCachedStory } from './services/translationService';
 import { LANGUAGES } from './services/languageService';
 import { prefetchedStories } from './services/prefetched-stories';
-import type { Topic, HymnChunk, Language } from './types';
+import type { Topic, HymnChunk, Language, ChatMessage } from './types';
 import { ApiKeyManager } from './components/ApiKeyManager';
 
 const App: React.FC = () => {
@@ -20,6 +19,7 @@ const App: React.FC = () => {
   const [p5jsCode, setP5jsCode] = useState<string | null>(null);
   const [citations, setCitations] = useState<string[]>([]);
   const [initialSuggestions, setInitialSuggestions] = useState<string[]>([]);
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +33,7 @@ const App: React.FC = () => {
     setP5jsCode(null);
     setCitations([]);
     setInitialSuggestions([]);
+    setInitialMessages([]);
     
     const topic = getTopicByTitle(topicTitle);
     setSelectedTopic(topic);
@@ -63,26 +64,30 @@ const App: React.FC = () => {
         return generateP5jsAnimation(topic.title, topic.description);
     };
 
-    const loadStory = async (): Promise<{ story: string; citations: string[]; suggestions: string[] }> => {
-        // 1. Direct language match in prefetched stories
-        const prefetchedData = prefetchedStories[topic.title]?.[selectedLanguage.code];
-        if (prefetchedData) {
-            return {
-                story: prefetchedData.story,
-                citations: prefetchedData.citations,
-                suggestions: prefetchedData.suggestions || [],
-            };
-        }
-
-        // 2. Check localStorage cache
+    const loadStory = async (): Promise<{ story: string; citations: string[]; suggestions: string[]; messages: ChatMessage[] }> => {
+        // 1. Check localStorage cache
         const cachedData = cacheService.get(topic.title, selectedLanguage.code);
         if (cachedData) {
             return {
                 story: cachedData.story,
                 citations: cachedData.citations,
                 suggestions: cachedData.suggestions || [],
+                messages: cachedData.messages || [], // Load saved messages
             };
         }
+        
+        // 2. Direct language match in prefetched stories
+        const prefetchedData = prefetchedStories[topic.title]?.[selectedLanguage.code];
+        if (prefetchedData) {
+            return {
+                story: prefetchedData.story,
+                citations: prefetchedData.citations,
+                suggestions: prefetchedData.suggestions || [],
+                messages: [], // Prefetched stories always start a new conversation
+            };
+        }
+
+        
 
         // 3. Check for English prefetched story to translate
         const englishPrefetched = prefetchedStories[topic.title]?.['en-US'];
@@ -93,12 +98,12 @@ const App: React.FC = () => {
                 story: translatedData.story,
                 citations: englishPrefetched.citations,
                 suggestions: translatedData.suggestions,
+                messages: [], // Translated stories start a new conversation
             };
         }
         
         // 4. Generate story and suggestions if not found in any cache
         setLoadingMessage("The Sage is weaving the tale...");
-        // FIX: Added await to resolve the promise from retrieveHymns.
         const context: HymnChunk[] = await retrieveHymns(topic.keywords);
         
         const query = `As the Vedic Sage, tell me a story about ${topic.title} in ${selectedLanguage.name}. Explain its significance and meaning, drawing upon the ancient hymns. Generate the story in the native script for ${selectedLanguage.name}, unless it is a transliterated language like Hinglish, in which case use the Latin script.`;
@@ -119,15 +124,13 @@ const App: React.FC = () => {
         setLoadingMessage("The Sage is pondering further questions...");
         const suggestions = await generateInitialSuggestions(fullStory, selectedLanguage.name);
         
-        return { story: fullStory, citations: storyCitations, suggestions };
+        return { story: fullStory, citations: storyCitations, suggestions, messages: [] };
     };
 
     try {
         const animationPromise = loadAnimation();
         const storyPromise = loadStory();
 
-        // Set animation state as soon as it's ready for immediate rendering.
-        // This makes the UI feel much faster.
         animationPromise.then(code => {
             setP5jsCode(code);
         }).catch(err => {
@@ -135,25 +138,27 @@ const App: React.FC = () => {
             setError("The Sage's vision could not be rendered.");
         });
 
-        // Wait for the story content to be ready.
         const storyData = await storyPromise;
 
-        // Set the story content state.
         setStory(storyData.story);
         setCitations(storyData.citations);
         setInitialSuggestions(storyData.suggestions);
+        setInitialMessages(storyData.messages);
 
-        // Wait for the animation promise to resolve to get the code for caching.
         const animationCode = await animationPromise;
 
-        // Cache the combined result for future visits.
-        cacheService.set(topic.title, {
-            story: storyData.story,
-            p5jsCode: animationCode,
-            citations: storyData.citations,
-            language: selectedLanguage.code,
-            suggestions: storyData.suggestions,
-        }, selectedLanguage.code);
+        // Only create a new cache entry if one doesn't already exist (i.e., no messages were loaded).
+        // This prevents overwriting a saved conversation. StoryDisplay will handle updating it.
+        if (!storyData.messages || storyData.messages.length === 0) {
+            cacheService.set(topic.title, {
+                story: storyData.story,
+                p5jsCode: animationCode,
+                citations: storyData.citations,
+                language: selectedLanguage.code,
+                suggestions: storyData.suggestions,
+                messages: [], // Initialize with an empty messages array
+            }, selectedLanguage.code);
+        }
       
     } catch (e) {
       console.error(e);
@@ -170,13 +175,14 @@ const App: React.FC = () => {
     setP5jsCode(null);
     setCitations([]);
     setInitialSuggestions([]);
+    setInitialMessages([]);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-100 via-amber-50 to-orange-100 text-stone-900 flex flex-col items-center p-4 sm:p-6 md:p-8">
       <header className="w-full max-w-5xl text-center mb-8">
         <h1 className="text-4xl md:text-6xl font-bold font-display text-amber-800 tracking-wider">The Vedic Sage</h1>
-        <p className="text-lg md:text-xl text-stone-600 mt-2">An AI-Powered Journey into the Rigveda</p>
+        <p className="text-lg md:text-xl text-stone-600 mt-2">An AI-Powered Journey into the Ṛgveda</p>
       </header>
       
       <main className="w-full max-w-5xl flex-grow">
@@ -191,11 +197,12 @@ const App: React.FC = () => {
             onBack={handleBack}
             selectedLanguage={selectedLanguage}
             initialSuggestions={initialSuggestions}
+            initialMessages={initialMessages}
           />
         ) : (
           <div>
-            <ApiKeyManager />
             <div className="text-center mb-8 p-4 bg-amber-50/50 rounded-lg border border-amber-200">
+                <p className="my-2 text-stone-700 max-w-3xl mx-auto">Select a language that you are comfortable to learn the Ṛgveda:</p>
                 <div className="max-w-xs mx-auto mb-6">
                   <LanguageSelector
                     languages={LANGUAGES}
@@ -205,7 +212,8 @@ const App: React.FC = () => {
                   />
                 </div>
                 <h2 className="text-2xl font-display text-amber-900">Choose a Path of Wisdom</h2>
-                <p className="mt-2 text-stone-700 max-w-3xl mx-auto">Select a deity, concept, or hymn from the sacred playbook below. The Sage will weave a tale from the ancient verses of the Rigveda, illuminating its timeless knowledge.</p>
+                <p className="mt-2 text-stone-700 max-w-3xl mx-auto">Select a deity, concept, or hymn from the sacred playbook below. The Sage will weave a tale from the ancient verses of the Ṛgveda, illuminating its timeless knowledge.</p>
+                <p className="mt-2 text-stone-700 max-w-3xl mx-auto"><em> For best experience, turn on 'Full Screen' by clicking the button above.</em></p>
             </div>
             <Playbook topics={TOPICS_CATEGORIZED} onSelect={handleTopicSelect} />
           </div>
@@ -213,7 +221,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="w-full max-w-5xl text-center mt-8 p-4 text-stone-500 text-sm">
-        <p>Crafted with <SparklesIcon className="inline-block h-4 w-4 text-amber-500" /> Generative AI. Narratives are interpretations grounded in the Rigveda.</p>
+        <p>Crafted with <SparklesIcon className="inline-block h-4 w-4 text-amber-500" /> Generative AI. Narratives are interpretations grounded in the Ṛgveda.</p>
         <p className="mt-2">Images are taken from various sources. All sources should be considered acknowledged.</p>
       </footer>
        {error && (

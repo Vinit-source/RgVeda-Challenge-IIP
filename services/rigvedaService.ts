@@ -81,7 +81,7 @@ export const TOPICS_CATEGORIZED: { [key: string]: Topic[] } = {
     Rishis: [
         {
             title: "Madhuchhandas Vaishvamitra",
-            description: "Son of Vishvamitra, composer of the opening hymns of the Rigveda to Agni and Indra.",
+            description: "Son of Vishvamitra, composer of the opening hymns of the Ṛgveda to Agni and Indra.",
             keywords: ["madhuchhandas", "vishvamitra", " विश्वामित्र", "मधुच्छन्दस्"],
             image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRO7lqLxawl4iIgCZm3ITr6ZOxNCxgL78Arw&s"
         },

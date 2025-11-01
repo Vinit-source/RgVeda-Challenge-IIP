@@ -308,14 +308,14 @@ He mounts his splendid chariot, drawn by his seven swift, gleaming mares (RV 7.6
 },
 "Madhuchhandas Vaishvamitra": {
   "en-US": {
-    "story": "The son of Vishvamitra, the sage Madhuchhandas, is the one who sings the first hymns (`sūktāni`) of the sacred Rigveda. His voice is the first to be heard, and he first calls upon Agni. 'I praise Agni,' he sings, 'who is placed at the very front (`purohitaṁ`), the chosen priest of the sacrifice, the invoker, who bestows great treasure' (RV 1.1.1). Having praised the Fire, his song then turns to mighty Indra: 'Sing to Indra, O singers, the King (`rājā`) of all, the chief of the sacrifice, the mighty one who drinks the Soma' (RV 1.7.1).",
+    "story": "The son of Vishvamitra, the sage Madhuchhandas, is the one who sings the first hymns (`sūktāni`) of the sacred Ṛgveda. His voice is the first to be heard, and he first calls upon Agni. 'I praise Agni,' he sings, 'who is placed at the very front (`purohitaṁ`), the chosen priest of the sacrifice, the invoker, who bestows great treasure' (RV 1.1.1). Having praised the Fire, his song then turns to mighty Indra: 'Sing to Indra, O singers, the King (`rājā`) of all, the chief of the sacrifice, the mighty one who drinks the Soma' (RV 1.7.1).",
     "p5jsCode": "p.setup = () => {\n  p.particles = [];\n  p.lights = [];\n  p.colorMode(p.HSB, 360, 100, 100, 100);\n  p.noStroke();\n  \n  for (let i = 0; i < 100; i++) {\n    p.lights.push({\n      x: p.random(p.width),\n      y: p.random(p.height),\n      size: p.random(1, 2.5),\n      brightness: p.random(80, 100)\n    });\n  }\n};\n\np.draw = () => {\n  p.background(30, 5, 99, 10);\n\n  for (const light of p.lights) {\n    p.fill(40, 5, light.brightness, p.sin(p.frameCount * 0.01 + light.x) * 5 + 10);\n    p.ellipse(light.x, light.y, light.size, light.size);\n  }\n\n  let center = p.createVector(p.width / 2, p.height / 2);\n  let pulse = p.sin(p.frameCount * 0.02) * 5;\n  p.fill(50, 80, 100, 70 + pulse * 2);\n  p.ellipse(center.x, center.y, 30 + pulse, 30 + pulse);\n\n  let hue = p.frameCount % 120 < 60 ? p.random(10, 40) : p.random(190, 220);\n\n  for (let i = 0; i < 3; i++) {\n    p.particles.push(new p.Particle(center.x, center.y, hue));\n  }\n\n  for (let i = p.particles.length - 1; i >= 0; i--) {\n    p.particles[i].update();\n    p.particles[i].display();\n    if (p.particles[i].isDead()) {\n      p.particles.splice(i, 1);\n    }\n  }\n};\n\np.Particle = class {\n  constructor(x, y, hue) {\n    this.pos = p.createVector(x, y);\n    let angle = p.random(p.TWO_PI);\n    this.vel = p5.Vector.fromAngle(angle);\n    this.vel.mult(p.random(1, 3));\n    this.lifespan = 100;\n    this.hue = hue + p.random(-5, 5);\n    this.sat = p.random(70, 90);\n    this.size = p.random(2, 6);\n  }\n\n  update() {\n    this.pos.add(this.vel);\n    this.vel.mult(0.98);\n    this.lifespan -= 1.2;\n  }\n\n  display() {\n    p.fill(this.hue, this.sat, 100, this.lifespan);\n    p.ellipse(this.pos.x, this.pos.y, this.size, this.size);\n  }\n\n  isDead() {\n    return this.lifespan <= 0;\n  }\n};\n\np.windowResized = () => {\n  p.lights = [];\n  for (let i = 0; i < 100; i++) {\n    p.lights.push({\n      x: p.random(p.width),\n      y: p.random(p.height),\n      size: p.random(1, 2.5),\n      brightness: p.random(80, 100)\n    });\n  }\n};\n",
     "citations": [
       "RV 1.1.1",
       "RV 1.7.1"
     ],
     "suggestions": [
-      "Why is Agni praised first in the Rigveda?",
+      "Why is Agni praised first in the Ṛgveda?",
       "Who was Vishvamitra, Madhuchhandas's father?",
       "What does 'purohita' (placed at the front) mean?",
       "Tell me more about the relationship between Indra and Soma."
@@ -380,7 +380,7 @@ He mounts his splendid chariot, drawn by his seven swift, gleaming mares (RV 7.6
       "What is the story of Bhrigu bringing fire to humans?",
       "How is Agni the 'embryo of plants'?",
       "Why is this family of seers named Bhrigu?",
-      "What is the role of the Bhrigus in the Rigveda?"
+      "What is the role of the Bhrigus in the Ṛgveda?"
     ]
   }
 },

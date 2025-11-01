@@ -31,4 +31,5 @@ export interface CachedStory {
     citations: string[];
     language: string; // This is a language code string
     suggestions: string[];
+    messages?: ChatMessage[];
 }

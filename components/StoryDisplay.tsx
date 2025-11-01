@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Topic, Language, ChatMessage as ChatMessageType } from '../types';
+import type { Topic, Language, ChatMessage as ChatMessageType, CachedStory } from '../types';
 import { VedicAnimation } from './VedicAnimation';
 import { ChatMessage } from './ChatMessage';
 import { Suggestions } from './Suggestions';
@@ -7,6 +7,7 @@ import { ChatInput } from './ChatInput';
 import { synthesizeSpeech, continueConversationStream } from '../services/geminiService';
 import { audioService } from '../services/audioService';
 import { decode, decodeAudioData } from '../utils/audioUtils';
+import { cacheService } from '../services/cacheService';
 
 interface StoryDisplayProps {
   topic: Topic;
@@ -18,6 +19,7 @@ interface StoryDisplayProps {
   onBack: () => void;
   selectedLanguage: Language;
   initialSuggestions: string[];
+  initialMessages: ChatMessageType[];
 }
 
 const LoadingSpinner: React.FC<{ message: string }> = ({ message }) => (
@@ -38,11 +40,12 @@ const splitSentences = (text: string): string[] => {
 };
 
 
-export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack, selectedLanguage, initialSuggestions }) => {
+export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCode, citations, isLoading, loadingMessage, onBack, selectedLanguage, initialSuggestions, initialMessages }) => {
     const [messages, setMessages] = useState<ChatMessageType[]>([]);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isReplying, setIsReplying] = useState(false);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const storyPlayedRef = useRef(false);
     
     // Unified TTS state management
     const [ttsState, setTtsState] = useState<{ id: string | null; status: 'IDLE' | 'LOADING' | 'PLAYING' }>({ id: null, status: 'IDLE' });
@@ -73,6 +76,24 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         scheduledSourcesRef.current = [];
         setTtsState({ id: null, status: 'IDLE' });
     }, []);
+
+     const saveConversation = useCallback((currentMessages: ChatMessageType[], currentSuggestions: string[]) => {
+        if (!topic || !p5jsCode) return;
+        
+        // The initial story is the first message from the sage, or the story prop if no messages yet.
+        const initialStoryText = (currentMessages.find(m => m.sender === 'sage')?.text) || story || '';
+
+        const cacheData: CachedStory = {
+            story: initialStoryText,
+            p5jsCode: p5jsCode,
+            citations: citations,
+            language: selectedLanguage.code,
+            suggestions: currentSuggestions,
+            messages: currentMessages,
+        };
+        cacheService.set(topic.title, cacheData, selectedLanguage.code);
+    }, [topic, p5jsCode, citations, selectedLanguage.code, story]);
+
 
     const playMessageWithStreamingAudio = useCallback(async (message: ChatMessageType) => {
         if (ttsState.status !== 'IDLE') {
@@ -144,22 +165,18 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 const sentence = sentences[i];
                 if (signal.aborted) throw new Error('Aborted');
 
-                // Start fetching the *next* sentence's audio in parallel.
                 const nextAudioBufferPromise = (i + 1 < sentences.length)
                     ? fetchAndDecodeSentence(sentences[i + 1], signal)
                     : Promise.resolve(null);
                 
-                // FIX: Ensure the AudioContext is awake before decoding, which happens inside the awaited promise.
-                // This prevents failures on slower speeds where the browser might suspend the context.
                 if (ctx.state === 'suspended') await ctx.resume();
                 
-                // Wait for the *current* sentence's audio to be ready.
                 const audioBuffer = await audioBufferPromise;
                 
                 if (!audioBuffer) {
                     console.warn(`Skipping sentence due to audio fetch failure: "${sentence}"`);
                     if (i === sentences.length - 1) onPlaybackEnd();
-                    audioBufferPromise = nextAudioBufferPromise; // Move to the next promise
+                    audioBufferPromise = nextAudioBufferPromise;
                     continue;
                 }
                 
@@ -187,7 +204,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 setMessages(prev => prev.map(m => m.id === message.id ? { ...m, text: m.text + ' ' } : m));
 
                 nextStartTime += audioBuffer.duration / playbackRate;
-                audioBufferPromise = nextAudioBufferPromise; // For the next iteration, we'll await the promise we just started.
+                audioBufferPromise = nextAudioBufferPromise;
             }
             
             await playbackFinishedPromise;
@@ -222,19 +239,32 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         };
     }, [stopCurrentPlayback]);
 
-    // Effect to populate initial message from story prop
+    // Effect to populate initial message from story or initialMessages prop
     useEffect(() => {
-        if (story) {
+        if (initialMessages && initialMessages.length > 0) {
+            setMessages(initialMessages);
+            setSuggestions(initialSuggestions);
+            storyPlayedRef.current = true; // Don't autoplay cached conversations
+        } else if (story) {
             const firstMessage: ChatMessageType = { id: `sage-${Date.now()}`, sender: 'sage', text: story };
             setMessages([firstMessage]);
             setSuggestions(initialSuggestions);
-            playMessageWithStreamingAudio(firstMessage); // Autoplay the initial story
+            if (!storyPlayedRef.current) {
+                playMessageWithStreamingAudio(firstMessage); // Autoplay the initial story
+                storyPlayedRef.current = true;
+            }
         } else {
             setMessages([]);
             setSuggestions([]);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [story, initialSuggestions]);
+    }, [story, initialSuggestions, initialMessages]);
+
+    // Reset played ref when topic changes
+    useEffect(() => {
+        storyPlayedRef.current = false;
+    }, [topic]);
+
 
     // Auto-scroll chat
     useEffect(() => {
@@ -282,7 +312,12 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             }
 
             const finalSageMessage = { id: sagePlaceholderId, sender: 'sage' as const, text: finalReply };
-            setMessages(prev => prev.map(m => m.id === sagePlaceholderId ? finalSageMessage : m));
+            
+            setMessages(prev => {
+                const newMessages = prev.map(m => m.id === sagePlaceholderId ? finalSageMessage : m);
+                saveConversation(newMessages, finalSuggestions);
+                return newMessages;
+            });
             setSuggestions(finalSuggestions);
             playMessageWithStreamingAudio(finalSageMessage);
 
@@ -293,7 +328,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
         } finally {
             setIsReplying(false);
         }
-    }, [messages, selectedLanguage.name, playMessageWithStreamingAudio, isReplying, stopCurrentPlayback]);
+    }, [messages, selectedLanguage.name, playMessageWithStreamingAudio, isReplying, stopCurrentPlayback, saveConversation]);
 
 
     return (
@@ -314,6 +349,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
             <button
               onClick={() => {
                   stopCurrentPlayback();
+                  storyPlayedRef.current = false;
                   onBack();
               }}
               className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors duration-200 shadow"
@@ -381,7 +417,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
 
              {citations.length > 0 && !isLoading && (
                 <div className="mt-4 pt-4 border-t border-amber-200">
-                    <h4 className="font-bold text-stone-700">Sources from the Rigveda:</h4>
+                    <h4 className="font-bold text-stone-700">Sources from the Ṛgveda:</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {citations.map(c => <span key={c} className="bg-amber-200 text-amber-800 text-xs font-mono px-2 py-1 rounded-full">{c}</span>)}
                     </div>
