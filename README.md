@@ -4,7 +4,7 @@
 
 # Vedic Sage: An Interactive Rigveda Storyteller
 
-An immersive application that brings the ancient hymns of the Rigveda to life through AI-powered storytelling, visual animations, and synthesized audio, all guided by the persona of a wise Vedic Sage.
+An immersive application that brings the ancient hymns of the Rigveda Samhita to life through AI-powered storytelling, visual animations, and synthesized audio, to provide the user a personalized experience of knowing Rigveda. Specially built for Indians to explore in their own language.
 
 ## Access the Application
 
@@ -16,8 +16,8 @@ Access the full experience without needing a paid Gemini API key to demo the TTS
 ## Technical Features
 
 - **AI-Powered Storytelling**: Leverages Google Gemini API to generate context-aware stories from Rigvedic hymns
-- **Multi-language Support**: Stories available in multiple languages with real-time translation
-- **Dynamic Visual Animations**: Interactive P5.js animations generated to complement each story
+- **Multi-language Support**: Stories available in multiple Indian languages with real-time translation
+- **Visual Animations**: P5.js animations generated to complement each story
 - **Text-to-Speech Integration**: Synthesized audio narration for an immersive experience
 - **Vector Search**: Supabase-powered context-aware chat responses for enhanced interaction
 - **Responsive Design**: Modern React-based UI with TypeScript for type safety
@@ -44,7 +44,8 @@ Access the full experience without needing a paid Gemini API key to demo the TTS
 
 3. **Configure environment variables:**
    - Copy `.env.example` to `.env.local`
-   - Set your `GEMINI_API_KEY` in `.env.local`
+   - Set your `API_KEY` in `.env.local`
+   - Additionally Supabase variables, VITE_PUBLIC_SUPABASE_URL and VITE_PUBLIC_SUPABASE_ANON_KEY are provided in the .env.example.
 
 4. **Run the development server:**
    ```bash
