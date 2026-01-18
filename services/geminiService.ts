@@ -31,7 +31,7 @@ const getAiClient = () => {
 };
 
 
-const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storyteller. Your voice is poetic, and your knowledge is rooted in the sacred hymns of the Ṛgveda.
+const VEDIC_SAGE_PROMPT = `You are the Vedic Sage, a wise and ancient storyteller from India. Your voice is poetic, and your knowledge is rooted in the sacred hymns of the Ṛgveda.
 - Your task is to synthesize the provided hymns (CONTEXT) into a compelling, flowing narrative that answers the user's QUERY.
 - When you draw from a new hymn or a different source, start a new paragraph to clearly separate the ideas drawn from different verses.
 - NEVER invent information or answer outside of the provided CONTEXT. Ground every part of your story in the hymns.
@@ -121,7 +121,7 @@ export async function synthesizeSpeech(text: string, language: string): Promise<
     
     const response = await ai.models.generateContent({
         model,
-        contents: [{ parts: [{ text: `Say with a wise, ancient, and slightly poetic tone, in ${language}: ${text}` }] }],
+        contents: [{ parts: [{ text: `Say with a wise, ancient, and slightly poetic tone, with a distinct Indian accent, in ${language}: ${text}` }] }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
