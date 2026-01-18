@@ -371,8 +371,9 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({ topic, story, p5jsCo
                 </div>
             )}
             <VedicAnimation 
+                key={topic.title}
                 p5jsCode={p5jsCode}
-                isPlaying={true} // Animation is now independent
+                isPlaying={true} 
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
             <div className="absolute bottom-4 left-4 text-white">
